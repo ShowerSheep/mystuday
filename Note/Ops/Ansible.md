@@ -1,0 +1,904 @@
+# 自动化运维 Ansible
+
+批量安装服务
+
+zabbix-agent
+
+ELK filebeat
+
+```bash
+Ansible特性
+    1)、no agents：不需要在被管控主机上安装任何客户端,更新时,只需在操作机上进行一次更新即可（不用安装客户端。分布式的）
+    2)、no server：无服务器端,使用时直接运行命令即可
+    3)、modules in any languages：基于模块工作,可使用任意语言开发模块
+    4)、yaml,not code：使用yaml语言定制剧本playbook
+    5)、ssh by default：基于SSH工作
+```
+
+## 一、ansible 安装
+
+### 1. 准备环境
+
+4台：1个控制节点，3个被控制节点
+
+```bash
+vim /etc/hosts
+
+192.168.1.130 ansible-server
+192.168.1.132 ansible-web1
+192.168.1.136 ansible-web2
+192.168.1.137 ansible-web3
+```
+
+配置ssh公钥认证：控制节点需要发送ssh公钥给所有非被控制节点
+
+```bash
+ssh-keygen
+
+ssh-copy-id -i 192.168.1.132
+ssh-copy-id -i 192.168.1.136
+ssh-copy-id -i 192.168.1.137
+```
+
+### 2. 安装
+
+安装控制节点
+
+1、配置epel网络yum源
+
+```bash
+yum install -y epel*
+```
+
+2、安装ansible
+
+```bash
+yum install -y ansible
+```
+
+3、查看版本
+
+```bash
+ansible --version
+```
+
+4、查看帮助
+
+```bash
+ansible --help
+```
+
+### 3. ansible基础：inventory主机清单
+
+官方文档:  http://docs.ansible.com/ansible/intro_inventory.html#
+
+> inventory文件通常用于定义要管理主机的认证信息，例如ssh登录用户名、密码以及key相关信息。
+
+查看配置文件位置
+
+```bash
+rpm -qc ansible
+```
+
+主配置文件：
+
+`/etc/ansible/ansible.cfg`  主要设置一些ansible初始化的信息，比如日志存放路径、模块、插件等配置信息
+
+主机清单文件:
+
+默认位置 `/etc/ansible/hosts`
+
+语法
+
+```bash
+# 1.添加主机或者主机组：
+vim /etc/ansible/hosts  #在最后追加被管理端的机器
+ansible-web1        #单独指定主机，可以使用主机名称或IP地址
+
+#2.添加主机组：
+[webservers]        #使用[]标签指定主机组 ----标签自定义
+192.168.10.11        #如果未解析添加ip
+ansible-web2      #解析添加主机名
+
+#3.组可以包含其他组：
+[webservers1]     #组一
+ansible-web1
+[webservers2]     #组二
+ansible-web2
+[weball:children]      #caildren-照写 #weball包括两个子组
+webservers1        #组一
+webservers2        #组二
+
+#4.为一个组指定变量，组内每个主机都可以使用该变量：
+[weball:vars]         #设置变量,vars--照写
+ansible_ssh_port=22     
+ansible_ssh_user=root   
+ansible_ssh_private_key_file=/root/.ssh/id_rsa  
+#ansible_ssh_pass=1      #也可以定义密码，如果没有互传秘钥可以使用密码。
+```
+
+ Ansible Inventory 常见的内置参数：
+
+![image-20221116143855008](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20221116143855008.png)
+
+查看组内主机列表
+
+ ![image-20221116143936265](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20221116143936265.png)
+
+```bash
+ansible weball --list-hosts
+```
+
+ ![image-20221116144129330](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20221116144129330.png)
+
+#### 扩展
+
+自定义主机列表使用密码登录（了解）
+
+```bash
+vim /opt/hosts
+
+[test:vars]
+ansible_ssh_port=22
+ansible_ssh_user=root
+#ansible_ssh_private_key_file=/root/.ssh/id_rsa
+a1nsible_ssh_pass=123
+[test]
+ansible-web1
+ansible-web2
+ansible-web3
+```
+
+使用
+
+```bash
+ansible -i /opt/hosts test -m ping -o
+```
+
+![image-20221116144530782](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20221116144530782.png)
+
+### 4. 模块
+
+```bash
+列出ansible支持的模块：
+-l：获取列表
+-s module_name：获取指定模块的使用信息
+
+#看所有模块（A10，华为，docker，EC2，aws等等广大厂商设备）
+[root@ansible-server ~]# ansible-doc -l
+
+#查看模块使用信息，了解其功能:
+[root@ansible-server ~]# ansible-doc -s yum
+```
+
+
+
+语法
+
+```bash
+ansible  <pattern>   -m <module_name>   -a <arguments>
+
+pattern--主机清单里定义的主机组名,主机名,IP,别名等,all表示所有的主机,支持通配符,正则
+-m module_name: 模块名称,默认为command
+-a arguments: 传递给模块的参数
+-o  横着显示（单行显示）
+```
+
+#### 1、ping
+
+```bash
+#指定单台机器
+ansible ansible-web1 -m ping -o
+
+#同时指定多台机器
+ansible ansible-web1,ansible-web2 -m ping -o
+
+#指定组名
+ansible weball -m ping -o
+```
+
+![image-20221116145058175](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20221116145058175.png)
+
+#### 2、command / shell
+
+执行shell命令
+
+```bash
+ansible weball -m shell -a 'uptime'
+
+# 不加 -m 默认是 command 模块
+ansible weball -a 'uptime'
+```
+
+ ![image-20221116145622913](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20221116145622913.png)
+
+
+
+给节点增加用户
+
+```bash
+ansible ansible-web1 -m shell -a 'useradd tom'
+
+ansible ansible-web1 -m shell -a 'grep tom /etc/passwd'
+
+ansible ansible-web1 -a 'df -Th' > a.txt
+```
+
+ ![image-20221116151932025](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20221116151932025.png)
+
+ ![image-20221116151945613](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20221116151945613.png)
+
+##### 面试题：
+
+>  在ansible中shell 和 command 模块. 这两个模块在很多情况下都能完成同样的工作，那么这两个模块之间的区别是什么？
+
+command和shell的区别就在于command模块使用shell=True，而shell模块使用shell=False，就是一个调用了shell，一个没有。
+
+#### 3、Ad-Hoc
+
+在终端输入一条ad-hoc命令后，ansible会生成一个可执行python脚本文件，然后把它拷贝到远程机器上执行，这个脚本中包含了命令行的所有信息。
+
+执行一条简单命令
+
+对于复杂命令，使用playbook
+
+#### 4、copy 远程复制备份模块
+
+```bash
+模块参数详解：  
+src=:指定源文件路径
+dest=:目标地址（拷贝到哪里）
+owner:指定属主
+group:指定属组
+mode:指定权限,可以以数字指定比如0644
+backup:在覆盖之前将原文件备份，备份文件包含时间信息。有两个选项：yes|no
+```
+
+```bash
+echo "123123" >> a.txt
+ansible test -m copy -a 'src=/root/a.txt dest=/opt owner=root group=root mode=644' -o
+
+echo "456456" >> a.txt
+ansible test -m copy -a 'src=/root/a.txt dest=/opt owner=root group=root mode=644 backup=yes' -o
+```
+
+在web1查看
+
+ ![image-20221116193738617](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20221116193738617.png)
+
+#### 5、user 用户管理模块
+
+```bsah
+'name= password= '	#指定用户名，密码
+absent	#删除用户，但不会删除家目录
+```
+
+添加用户并设置密码
+
+```bash
+ansible ansible-web1 -m user -a 'name=yang password="123456"'
+```
+
+![image-20221116194300291](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20221116194300291.png)
+
+删除用户，但不会删除家目录
+
+```bash
+ansible ansible-web1 -m user -a "name=yang state=absent" -o
+```
+
+![image-20221116194502227](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20221116194502227.png)
+
+web1结果
+
+ ![image-20221116194523525](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20221116194523525.png)
+
+#### 6、yum 软件包管理
+
+安装apache
+
+```bash
+ansible ansible-web2 -m yum -a "name=httpd state=latest" -o
+
+state=     #状态是什么，干什么
+state=absent	#用于删除安装包
+state=latest	#表示最新的
+state=removed	#表示卸载
+
+#卸载apache
+ansible ansible-web2 -m yum -a "name=httpd state=removed" -o
+```
+
+![image-20221116195054358](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20221116195054358.png)
+
+![image-20221116195308373](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20221116195308373.png)
+
+web2查看结果：
+
+ ![image-20221116195320983](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20221116195320983.png)
+
+#### 7、service 服务管理模块
+
+```bash
+#启动
+ansible ansible-web1 -m service -a "name=httpd state=started"
+
+#停止
+ansible ansible-web1 -m service -a "name=httpd state=stopped"
+
+#重新启动
+ansible ansible-web1 -m service -a "name=httpd state=restarted"
+
+#开机启动
+ansible ansible-web1 -m service -a "name=httpd state=started enabled=yes"
+
+#关闭开机启动
+ansible ansible-web1 -m service -a "name=httpd state=started enabled=no"
+```
+
+#### 8、file 文件模块
+
+模块参数详解
+
+```bash
+owner:修改属主
+group:修改属组
+mode:修改权限
+path=:要修改文件的路径
+recurse：递归的设置文件的属性，只对目录有效
+        yes:表示使用递归设置
+state:
+touch:创建一个新的空文件
+directory:创建一个新的目录，当目录存在时不会进行修改
+```
+
+```bash
+#创建一个文件
+ansible ansible-web1 -m file -a 'path=/opt/demo.c mode=777 state=touch'
+
+#创建一个目录
+ansible ansible-web1 -m file -a 'path=/opt/java mode=777 state=directory'
+```
+
+#### 9、setup 收集信息模块
+
+```bash
+#手机所有信息
+ansible ansible-web1 -m setup
+
+#filter过滤
+#只查询ipv4的地址
+ansible ansible-web1 -m setup -a 'filter=ansible_all_ipv4_addresses'
+```
+
+![image-20221116200842202](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20221116200842202.png)
+
+#### 10、unarchive 解压模块
+
+可以解压tar.gz包也可以解压zip包
+
+参数解释
+
+```bash
+copy：默认为yes，当copy=yes，那么拷贝的文件是从ansible主机复制到远程主机上的，如果设置为copy=no，那么会在远程主机上寻找src源文件
+src：源路径，可以是ansible主机上的路径，也可以是远程主机上的路径，如果是远程主机上的路径，则需要设置copy=no
+dest：远程主机上的目标路径
+```
+
+```bash
+ansible ansible-web1 -m unarchive -a 'src=/root/apache-tomcat-8.5.83.tar.gz dest=/opt/ copy=yes' -o
+```
+
+
+
+## 二、playbook 剧本
+
+playbook格式
+
+playbook由YMAL语言编写。YMAL格式是类似于JSON的文件格式，便于人理解和阅读，同时便于书写。
+
+> 一个剧本里面可以有多个play，每个play只能有一个tasks，每个tasks可以有多个name
+
+核心元素
+
+```bash
+Playbooks  
+Variables     #变量元素,可传递给Tasks/Templates使用;  
+Tasks          #任务元素,由模块定义的操作的列表，即调用模块完成任务;  
+Templates   #模板元素,使用了模板语法的文本文件;  
+Handlers     #处理器元素,通常指在某事件满足时触发的操作;  
+Roles          #角色元素
+```
+
+playbook的基础组件
+
+```yaml
+name:
+    定义playbook或者task的名称(描述信息)，每一个play都可以完成一个任务。
+hosts: 
+    playbook中的每一个paly的目的都是为了让某个或某些以某个指定用户的身份执行任务。hosts用于指定要执行指定任务的主机.
+user:
+    remote_user则用于指定远程主机上的执行任务的用户，也可以使用user（基本上是root）
+tasks:
+    任务列表play的主体部分是task list. task list中的各任务按次序逐个在hosts中指定的所有主机上执行，即在所有主机上完成第一个任务后再开始第二个。
+vars:
+   定义变量（如果不使用内部变量需要提前定义）
+vars_files:
+  调用定义变量文件
+notify:
+    任务执行结果如果是发生更改了的则触发定义在handler的任务执行
+handlers:
+    用于当前关注的资源发生变化时采取一定指定的操作
+```
+
+### 1. tasks
+
+```bash
+cd /etc/ansible/
+vim test.yml
+```
+
+```yaml
+---
+ - hosts: ansible-web1 
+   user: root
+   tasks:
+   - name: test
+     file: state=touch path=/opt/playbook.txt
+```
+
+ ![image-20221116172554375](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20221116172554375.png)
+
+参数解释
+
+```yaml
+hosts: 参数指定了对哪些主机进行操作；
+user: 参数指定了使用什么用户登录远程主机操作；
+tasks: 指定了一个任务.
+name:参数同样是对任务的描述，在执行过程中会打印出来。
+```
+
+检查语法
+
+```bash
+[root@ansible-server ansible]# ansible-playbook --syntax-check test.yml 
+
+playbook: test.yml
+```
+
+运行playbook
+
+```bash
+ansible-playbook test.yml
+```
+
+![image-20221116172917956](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20221116172917956.png)
+
+### 2. handlers
+
+```yaml
+handlers：由特定条件触发的Tasks
+handlers:处理器
+notify:触发器
+语法：
+tasks：
+- name: TASK_NAME
+  module: arguments               #1.上面任务执行成功，然后
+  notify: HANDLER_NAME        #2.通知他
+handlers:
+- name: HANDLER_NAME        #3.一一对应，这里的描述与notify定义的必须一样
+  module: arguments         #4.执行这个命令
+```
+
+使用
+
+```bash
+vim handlers.yml
+```
+
+```yaml
+---
+ - hosts: ansible-web1
+   user: root
+   tasks:
+   - name: copy file test
+     copy: src=/root/a.txt dest=/opt
+     notify: test handlers
+   handlers:
+   - name: test handlers
+     shell: echo "123" >> /opt/a.txt
+```
+
+作用：把ansible-server中 `/root/a.txt` 复制到 `ansible-web1` 的 `/opt` 下，并且插入123。
+
+```bash
+#检测语法
+ansible-playbook --syntax-check handlers.yml
+
+ansible-playbook handlers.yml
+```
+
+![image-20221116174359757](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20221116174359757.png)
+
+> 说明：只有 copy 模块真正执行后，才会去调用下面的 handlers 相关的操作，追加内容。所以这种比较适合配置文件发生更改后，需要重启服务的操作。
+
+### 3. item
+
+> 循环：迭代，需要重复执行的任务；
+> 对迭代项的引用，固定变量名为”item”，使用with_item属性给定要迭代的元素； 
+>  元素：1.列表 ，2.字符串 3.字典
+> 基于字符串列表元素实战：
+
+```bash
+vim list.yml
+```
+
+```yaml
+- hosts: ansible-web1
+  remote_user: root
+  tasks:
+  - name: isntall packages
+    yum: name={{ item }} state=latest
+    with_items:
+     - httpd
+     - php
+     - php-fpm
+```
+
+执行
+
+```bash
+ansible-playbook install-list.yml
+```
+
+![image-20221116184841644](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20221116184841644.png)
+
+### 4. 自动义 vars_files 变量
+
+变量调用语法： 
+`{{ var_name }}`
+
+创建变量目录
+
+```bash
+mkdir /etc/ansible/vars
+cd /etc/ansible/vars/
+
+vim file.yml
+```
+
+```yaml
+src_path: /root/b.txt
+dest_path: /opt/
+```
+
+创建测试文件
+
+```bash
+echo "123456" >> /root/b.txt
+```
+
+创建playbook引用变量文件
+
+```bash
+cd /etc/ansible/
+vim vars.yml
+```
+
+```yaml
+- hosts: ansible-web1
+  user: root
+  vars_files:
+   - /etc/ansible/vars/file.yml
+  tasks:
+   - name: create directory
+     file: path={{ dest_path }} mode=755 state=directory
+   - name: copy file
+     copy: src={{ src_path }} dest={{ dest_path }}
+```
+
+执行
+
+```bash
+ansible-playbook vars.yml
+```
+
+![image-20221116190600382](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20221116190600382.png)
+
+在`web1`检查
+
+ ![image-20221116190643153](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20221116190643153.png)
+
+### 5. 安装apache
+
+现在server端安装apache
+
+```bash
+yum -y install httpd
+
+mkdir /apache
+cp /etc/httpd/conf/httpd.conf /apache/
+
+#修改端口为8080
+vim /apache/httpd.conf
+
+Listen 8080
+```
+
+ansible编写脚本
+
+```bash
+cd /etc/ansible/
+vim apache.yml
+```
+
+```yml
+- hosts: ansible-web1
+  user: root
+  tasks:
+  - name: install apache
+    yum: name=httpd state=latest
+  - name: copy httpd conf file
+    copy: src=/apache/httpd.conf dest=/etc/httpd/conf/httpd.conf
+    notify: start httpd
+  handlers:
+  - name: start httpd
+    service: name=httpd state=started
+```
+
+执行
+
+```bash
+ansible-playbook apache.yml
+```
+
+![image-20221116192515642](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20221116192515642.png)
+
+在web1查看结果
+
+```bash
+netstat -ntpl
+```
+
+![image-20221116192551064](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20221116192551064.png)
+
+
+
+## 三、Role角色
+
+### 1. 准备环境
+
+```bash
+cd /etc/ansible/roles
+mkdir nginx/{files,handlers,tasks,templates,vars} -p
+touch site.yml nginx/{handlers,tasks,vars}/main.yml
+echo "123" >> nginx/files/index.html
+tree
+```
+
+ ![image-20221117115051328](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20221117115051328.png)
+
+### 2. 安装nginx并配置模板
+
+```bash
+yum install -y nginx
+cp /etc/nginx/nginx.conf /etc/ansible/roles/nginx/templates/nginx.conf.j2
+```
+
+templates模板:  用的是jinja2的语法
+
+编写任务
+
+```bash
+vim nginx/tasks/main.yml
+```
+
+```yaml
+- name: install epel repo
+  yum: name=epel-release state=latest
+- name: isntall nginx
+  yum: name=nginx state=latest
+- name: copy nginx conf template
+  template: src=nginx.conf.j2 dest=/etc/nginx/nginx.conf
+- name: copy index.html
+  copy: src=index.html dest=/usr/share/nginx/html/index.html
+  notify: start nginx
+```
+
+### 3. 准备配置文件
+
+```bash
+vim nginx/templates/nginx.conf.j2
+```
+
+ ![image-20221117140754901](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20221117140754901.png)
+
+修改自定义变量
+
+### 4. 编写变量
+
+```bash
+vim nginx/vars/main.yml
+```
+
+```yaml
+worker: auto
+count: 1024
+```
+
+### 5. 编写handlers
+
+```bash
+vim nginx/handlers/main.yml
+```
+
+```yaml
+- name: start nginx
+  service: name=nginx state=started
+```
+
+name必须和`notify`名字一样
+
+### 6. 编写剧本
+
+```bash
+vim site.yml
+```
+
+```yaml
+- hosts: ansible-web2
+  user: root
+  roles:
+    - nginx
+```
+
+### 7. 执行
+
+```bash
+#检查语法
+ansible-playbook site.yml --syntax-check
+
+#执行剧本
+ansible-playbook site.yml
+```
+
+去web2查看结果
+
+```bash
+netstat -ntpl
+```
+
+并且浏览器访问：`192.168.1.136` 查看结果是否和index.html一样
+
+
+
+## 四、项目实战
+
+1、准备两台服务器，一台作为nginx代理。一台为tomcat服务器。
+
+2、tomcat服务器部署tomcat服务，并将webapps目录下面的内容提前删掉。
+
+3、将jenkins.war包与jdk、tomcat上传到nginx服务器。通过ansible将包拷贝过去。部署并启动tomcat
+
+4、配置nginx反向代理tomcat，实现访问jenkins。
+
+### 1. tomcat
+
+```bash
+vim /usr/local/tomcat/bin/startup.sh
+
+#第二行加上
+source /etc/profile
+```
+
+### 2. nginx
+
+安装nginx ansible
+
+```bash
+cd /etc/ansible
+mkdir vars
+vim vars/file.yml
+```
+
+```yaml
+src_path: /root/jenkins.war
+src_jdk_path: /root/jdk-8u191-linux-x64.tar.gz
+src_tomcat_path: /root/apache-tomcat-8.5.51.tar.gz
+dest_path: /usr/local/tomcat/webapps/
+dest_jdk_path: /usr/src/
+dest_tomcat_path: /usr/src/
+```
+
+配置playbook
+
+```bash
+vim jenkins.yml
+```
+
+```yaml
+- hosts: ansible-web1
+  user: root
+  vars_files:
+  - /etc/ansible/vars/file.yml
+  tasks:
+
+  - name: configure JDK1.8
+    copy: src={{ src_jdk_path }}  dest={{ dest_jdk_path }}
+  - name: unzip JDK
+    shell: tar -xvzf /usr/src/jdk-8u191-linux-x64.tar.gz -C /usr/local
+  - name: rename to java
+    shell: mv /usr/local/jdk1.8.0_191 /usr/local/java
+  - name: configure JDK envirement1
+    shell: echo "JAVA_HOME=/usr/local/java" >> /etc/profile
+  - name: configure JDK envirement2
+    shell: echo 'PATH=$JAVA_HOME/bin:$PATH' >> /etc/profile
+
+  - name: copy tomcat
+    copy: src={{ src_tomcat_path }} dest={{ dest_tomcat_path }}
+  - name: unzip tomcat
+    shell: tar -xvzf /usr/src/apache-tomcat-8.5.51.tar.gz -C /usr/local
+  - name: rename to tomcat
+    shell: mv /usr/local/apache-tomcat-8.5.51 /usr/local/tomcat
+  
+  - name: add /etc/profile
+    shell: sed -i "2i source /etc/profile" /usr/local/tomcat/bin/startup.sh
+  - name: add /etc/profile to shutdown.sh
+    shell: sed -i "2i source /etc/profile" /usr/local/tomcat/bin/shutdown.sh
+
+  - name: copy jenkins
+    copy: src={{ src_path }}  dest={{ dest_path }}
+    notify: start jenkins
+  handlers:
+  - name: start jenkins
+    shell: nohup /usr/local/tomcat/bin/startup.sh &
+```
+
+执行
+
+```bash
+ansible-playbook jenkins.yml
+```
+
+### 3. nginx反向代理
+
+```bash
+vim /etc/nginx/conf.d/jenkins.conf
+```
+
+```nginx
+server {
+    listen       80;
+    server_name  localhost;
+
+    charset koi8-r;
+    access_log  /var/log/nginx/host.access.log  main;
+
+    location /jenkins {
+        proxy_pass http://192.168.1.12:8080;
+        proxy_set_header Host $host:$server_port;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+}
+```
+
+启动nginx
+
+检查nginx是否配置成功
+
+访问`ip/jenkins`
+
+
+
+
+
+
+
+
+
+
+
+
+

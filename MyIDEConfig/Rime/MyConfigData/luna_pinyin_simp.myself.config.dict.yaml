@@ -1,0 +1,17 @@
+# luna_pinyin_simp.myself.config.dict.yaml
+
+---
+name: luna_pinyin_simp.myself.config
+version: "2022.09.07"
+sort: by_weight
+use_preset_vocabulary: true
+# 导入扩充词库
+# luna_pinyin 默认词库
+# luna_pinyin_simp.myself 自己的
+import_tables:
+  - luna_pinyin
+  - luna_pinyin_simp.myself
+  - luna_pinyin_simp.third.sougou
+  - luna_pinyin_simp.third.sougou_program
+  
+...

@@ -1,0 +1,344 @@
+# haproxy
+
+## 1、七层负载
+
+### 1. 安装haproxy
+
+```bash
+yum -y install haproxy
+```
+
+### 2. 配置文件
+
+```bash
+mv /etc/haproxy/haproxy.cfg{,.bak}
+```
+
+```cfg
+global
+    log         127.0.0.1 local2 info
+    pidfile     /var/run/haproxy.pid
+    maxconn     4000
+    #每个haproxy进程所能接受的最大并发连接数
+    user        haproxy
+    group       haproxy
+    daemon      
+    #以后台形式运行ha-proxy
+    nbproc 1
+    #工作进程数量  cpu内核是几就写几
+defaults
+    mode  http
+    #工作模式 http ,tcp 是 4 层,http是 7 层	
+    log  global
+    retries 3
+    #健康检查。3次连接失败就认为服务器不可用，主要通过后面的check检查
+    option   redispatch
+    #服务不可用后重定向到其他健康服务器。
+    maxconn   4000
+    #每个haproxy进程所能接受的最大并发连接数
+    timeout queue           1m
+    #队列超时
+    timeout connect         5000ms
+    #ha服务器与后端服务器连接超时时间
+    timeout client         30s
+    #客户端超时
+    timeout server        30s 
+    #后端服务器超时
+listen stats
+#定义服务组
+    bind	*:9080
+    stats   enable
+    stats uri  	/haproxy
+    #使用浏览器访问 http://ip/haproxy,可以看到服务器状态
+    stats auth   tingyu:123
+    #用户认证，客户端使用elinks浏览器的时候不生效
+listen  webserver
+#定义服务组
+    mode  http
+    #七层代理模式
+    bind    *:80
+    #监听哪个ip和什么端口
+    option   httplog
+    #日志类别 http 日志格式
+    option  httpclose
+    #每次请求完毕后主动关闭http通道
+    option forwardfor
+    #七层透传，后端获取客户端IP
+    #balance     roundrobin
+    #负载均衡的方式
+    balance source
+    #将用户IP经过hash计算后,指定到固定的真实服务器上（类似于nginx 的IP hash 指令）。
+    server  http1 192.168.1.151:8081  weight 1  check inter 1s rise 2 fall 2
+    server  http2 192.168.1.151:8082  weight 1  check inter 1s rise 2 fall 2
+```
+
+### 3. 启用日志
+
+```bash
+echo 'local0.* /var/log/haproxy.log' >> /etc/rsyslog.conf
+systemctl restart rsyslog
+```
+
+### 4. 启动服务
+
+```bash
+systemctl enable haproxy
+systemctl start haproxy
+```
+
+### 5. 查看工作端口
+
+```bash
+netstat -ntpl
+```
+
+### 6. 访问服务
+
+```bash
+http://haproxy_ip/即可访后端服务
+http://haproxy_ip:9080/haproxy查看监控页面
+```
+
+
+
+## 2. TCP 四层负载
+
+```cfg
+global
+    log         127.0.0.1 local2 info
+    pidfile     /var/run/haproxy.pid
+    maxconn     4000
+    #优先级低
+    user        haproxy
+    group       haproxy
+    daemon
+    #以后台形式运行ha-proxy
+    nbproc 1
+    #工作进程数量  cpu内核是几就写几
+defaults
+    mode  http
+    #工作模式 http ,tcp 是 4 层,http是 7 层	
+    log  global
+    retries 3
+    #健康检查。3次连接失败就认为服务器不可用，主要通过后面的check检查
+    option   redispatch
+    #服务不可用后重定向到其他健康服务器。
+    maxconn   4000
+    #优先级中
+    timeout queue           1m
+    #队列超时
+    timeout connect         5000ms
+    #ha服务器与后端服务器连接超时时间
+    timeout client         30s
+    #客户端超时
+    timeout server        30s
+    #后端服务器超时
+listen stats
+#定义服务组
+    bind	*:9080
+    stats   enable
+    stats uri  	/haproxy
+    #使用浏览器访问 http://ip/haproxy,可以看到服务器状态
+    stats auth   qianfeng:123
+    #用户认证，客户端使用elinks浏览器的时候不生效
+listen  webserver
+#定义服务组
+    mode  http
+    #七层代理模式
+    bind    *:80
+    #监听哪个ip和什么端口
+    option   httplog
+    #日志类别 http 日志格式
+    option  httpclose
+    #每次请求完毕后主动关闭http通道
+    option forwardfor
+    #七层透传，后端获取客户端IP
+    #balance    roundrobin
+    #负载均衡的方式
+    balance source
+    #将用户IP经过hash计算后,指定到固定的真实服务器上（类似于nginx 的IP hash 指令）。
+    server  http1 10.36.107.138:80  weight 1  check inter 1s rise 2 fall 2
+    server  http2 10.36.107.139:80  weight 1  check inter 1s rise 2 fall 2
+listen  mysqlserver
+    mode     tcp
+    bind      *:23306
+    #监听哪个ip和什么端口
+    option    tcplog
+    #日志类别 tcp日志格式
+    option   redispatch
+    option abortonclose
+    ##当服务器负载很高的时候，自动结束掉当前队列处理比较久的连接   
+    balance  source
+    server  db1 10.36.107.138:3306  weight 1  check inter 1s rise 2 fall 2
+```
+
+
+
+## 3、haproxy+keepalived高可用（互为主备）
+
+### 1. 互为主备配置
+
+haproxy a：
+
+```config
+global_defs {
+   router_id haproxy_a
+   script_user root
+   enable_script_security
+}
+vrrp_script check_ha
+{
+   script "/bin/bash /etc/keepalived/check_haproxy.sh"
+   interval 5
+   weight -20
+}
+vrrp_instance VI_1 {
+    state MASTER
+    interface ens33
+    virtual_router_id 1
+    priority 100
+    advert_int 1
+    preempt
+    authentication {
+        auth_type PASS
+        auth_pass 123
+    }
+    virtual_ipaddress {
+        10.36.139.137/24 dev ens36 label ens36:0
+    }
+    track_script {
+        check_ha
+    }
+}
+vrrp_instance VI_2 {
+    state BACKUP
+    interface ens33
+    virtual_router_id 2
+    priority 90
+    advert_int 1
+    authentication {
+        auth_type PASS
+        auth_pass 123
+    }
+    virtual_ipaddress {
+        10.36.139.228/24 dev ens36 label ens36:1
+    }
+}
+```
+
+服务异常检测脚本
+
+```bash
+touch /etc/keepalived/check_haproxy.sh  && chmod o+x  /etc/keepalived/check_haproxy.sh
+```
+
+```sh
+#!/bin/bash
+process_num=`ps aux | grep sbin/haproxy | grep -v grep | wc -l`
+if [ "$process_num" = "0" ] ; then
+    systemctl start haproxy
+    sleep 2
+    process_num=`ps aux | grep sbin/haproxy | grep -v grep | wc -l`
+    if [ "$process_num" = "0" ] ; then
+        systemctl stop keepalived
+    fi
+fi
+```
+
+或
+
+```sh
+#!/bin/bash
+process_num=`ps aux | grep sbin/haproxy | grep -v grep | wc -l`
+if [ "$process_num" = "0" ] ; then
+        echo "`date +%F_%T`_haproxy is no running" >>/root/status.log
+        sleep 3
+        check_code=$( curl --connect-timeout 3 -sL -w "%{http_code}\n" http://localhost -o /dev/null )
+        sleep 1
+        if [[ "$check_code" =~ [2-3]0[0-4] ]]; then
+        echo "`date +%F_%T`_haproxy_status_${check_code}" >>/root/status.log
+        else
+        echo "`date +%F_%T`_keepalived_shutdown" >>/root/status.log
+        echo "`date +%F_%T`_haproxy_status_${check_code}" >>/root/status.log
+        systemctl stop keepalived
+        fi
+else
+        check_code=$( curl --connect-timeout 3 -sL -w "%{http_code}\n" http://localhost -o /dev/null )
+        sleep 1
+        if [[ "$check_code" =~ [2-3]0[0-4] ]]; then
+        echo "`date +%F_%T`_haproxy_status_${check_code}" >>/root/status.log
+        else
+        echo "`date +%F_%T`_keepalived_shutdown" >>/root/status.log
+        echo "`date +%F_%T`_haproxy_status_${check_code}" >>/root/status.log
+        systemctl stop keepalived
+        fi
+fi
+```
+
+haproxy b：
+
+```config
+global_defs {
+   router_id haproxy_b
+   script_user root
+   enable_script_security
+}
+vrrp_script check_ha
+{
+   script "/bin/bash /etc/keepalived/check_haproxy.sh"
+   interval 2
+   weight -20
+}
+vrrp_instance VI_1 {
+    state BACKUP
+    interface ens33
+    virtual_router_id 1
+    priority 90
+    preempt
+    advert_int 1
+    authentication {
+        auth_type PASS
+        auth_pass 123
+    }
+    virtual_ipaddress {
+        10.36.139.137/24 dev ens36 label ens36:0
+    }
+}
+vrrp_instance VI_2 {
+    state MASTER
+    interface ens33
+    virtual_router_id 2
+    priority 100
+    advert_int 1
+    authentication {
+        auth_type PASS
+        auth_pass 123
+    }
+    virtual_ipaddress {
+        10.36.139.228/24 dev ens36 label ens36:1
+    }
+    track_script {
+        check_ha
+    }
+}
+```
+
+haproxy_a同步检测脚本至haproxy_b
+
+```bash
+scp  /etc/keepalived/check_haproxy.sh root@10.36.107.139:/etc/keepalived/
+# haproxy_b上为脚本赋权
+chmod o+x /etc/keepalived/check_haproxy.sh
+```
+
+### 2. 启动服务
+
+```bash
+#关闭防火墙
+systemctl disable firewalld && systemctl stop firewalld
+
+systemctl enable keepalived && systemctl start keepalived
+```
+
+### 3. 访问服务
+

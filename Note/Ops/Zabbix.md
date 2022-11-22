@@ -1,0 +1,977 @@
+# Zabbix监控
+
+## 1、zabbix介绍
+
+
+
+## 2、zabbix 安装
+
+### 1. 更新yum仓库
+
+我们去官网下载一个包`zabbix-release-5.0-1.el7.noarch.rpm`，本地安装至我们的虚拟机，这样，我们本地就有了新的yum源，可以直接安装zabbix服务：
+
+```bash
+rpm -Uvh https://repo.zabbix.com/zabbix/5.0/rhel/7/x86_64/zabbix-release-5.0-1.el7.noarch.rpm
+
+mv /etc/yum.repos.d/epel.repo{,.bak}
+#新下载zabbix源和源eoel源有冲突
+```
+
+更新yum仓库
+
+```bash
+yum clean all
+```
+
+安装
+
+```bash
+sed -i 's#http://repo.zabbix.com#https://mirrors.aliyun.com/zabbix#' /etc/yum.repos.d/zabbix.repo
+
+yum install zabbix-server-mysql zabbix-web-mysql zabbix-agent -y
+
+#安装zabbix命令工具
+yum install -y zabbix-get.x86_64
+```
+
+### 2. 安装设置数据库
+
+1、安装mariadb
+
+```bash
+yum install -y mariadb mariadb-server
+```
+
+2、重启数据库服务
+
+```bash
+systemctl restart mariadb
+systemctl enable mariadb
+#设置root密码
+mysqladmin -u root password 'zabbix'
+
+#登录数据库
+mysql -uroot -p'zabbix'
+```
+
+3、创建数据库病授权帐号
+
+```mysql
+# 创建zabbix数据库
+create database zabbix character set utf8 collate utf8_bin;
+
+# 注意授权网段
+grant all privileges on zabbix.* to 'zabbix'@'localhost' identified by 'zabbix';
+
+#刷新授权
+flush privileges;
+
+#退出
+\q
+```
+
+4、导入表
+
+直接把表导入至我们的数据库
+
+```bash
+zcat /usr/share/doc/zabbix-server-mysql*/create.sql.gz | mysql -uzabbix -p'zabbix' zabbix
+```
+
+### 3. 配置 server 端
+
+数据库准备好以后，修改server端的配置文件
+
+```bash
+cd /etc/zabbix/
+
+#备份配置文件
+cp zabbix_server.conf zabbix_server.conf.bak
+
+vim zabbix_server.conf
+
+DBHost=localhost	#数据库对外的主机
+DBName=zabbix		#数据库名称
+DBUser=zabbix		#数据库用户
+DBPassword=zabbix	#数据库密码
+```
+
+配置完成，开启服务
+
+```bash
+systemctl start zabbix-server
+systemctl enable zabbix-server
+```
+
+开启服务后，确认端口有没有开启
+
+```bash
+netstat -ntpl
+```
+
+端口号：10051
+
+### 4. 配置 web GUI
+
+启用zabbix前端源，修改vim /etc/yum.repos.d/zabbix.repo，将[zabbix-frontend]下的 enabled 改为 1
+
+```repo
+vim /etc/yum.repos.d/zabbix.repo
+
+[zabbix-frontend]
+...
+enabled=1
+...
+```
+
+安装 Software Collections，便于后续安装高版本的 php，默认 yum 安装的 php 版本为 5.4 过低
+
+```bash
+yum install centos-release-scl -y
+```
+
+安装 zabbix 前端和相关环境
+
+```bash
+yum install zabbix-web-mysql-scl zabbix-apache-conf-scl -y
+```
+
+为Zabbix前端配置PHP
+
+```bash
+vim /etc/opt/rh/rh-php72/php-fpm.d/zabbix.conf
+
+#里面基本不用动。只需要添加一行时区即可
+#---添加如下
+php_value[date.timezone] = Asia/Shanghai
+```
+
+启动 `httpd` 服务
+
+```bash
+systemctl restart zabbix-server httpd rh-php72-php-fpm
+
+systemctl enable zabbix-server zabbix-agent httpd rh-php72-php-fpm
+```
+
+查看80端口是否开启
+
+### 5. 浏览器访问并进行初始化设置
+
+浏览器访问 `192.168.1.155/zabbix` 
+
+
+
+默认用户名：Admin，密码：zabbix
+
+
+
+## 3、配置agent端
+
+### 1. 安装zabbix
+
+```bash
+rpm -Uvh https://repo.zabbix.com/zabbix/5.0/rhel/7/x86_64/zabbix-release-5.0-1.el7.noarch.rpm
+mv /etc/yum.repos.d/epel.repo{,.bak}
+
+yum install zabbix-agent zabbix-sender -y
+```
+
+### 2. 修改配置文件
+
+```bash
+cd /etc/zabbix/
+
+cp zabbix_agentd.conf{,.bak}
+
+vim zabbix_agentd.conf
+
+Server=192.168.246.228 #zabbix服务器的地址 
+ServerActive=192.168.246.228 #主动模式 zabbix-server-ip 
+Hostname=zabbix-node1 
+UnsafeUserParameters=1 #是否限制用户自定义 keys 使用特殊字符 1是可以启用特殊字符 0是不可以启用特殊字符
+```
+
+是否允许别人执行远程操作命令，默认是禁用的，打开的话会有安全风险.
+
+启动服务
+
+```bash
+systemctl start zabbix-agent
+systemctl enable zabbix-agent
+```
+
+查看端口10050是否开启
+
+## 4、监控过程
+
+### 1. 修改密码和中文界面
+
+ ![image-20221107171540377](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20221107171540377.png)
+
+ ![image-20221107171738599](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20221107171738599.png)
+
+### 2. 创建主机及主机群组
+
+### 3. 监控项
+
+### 4. 触发器
+
+### 5. 定义动作
+
+### 6. zabbix可视化
+
+自定义图形：配置 ---> 主机 ---> node1 ---> 图形
+
+ ![image-20221111184015112](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20221111184015112.png)
+
+
+
+
+#### 修改字体
+
+```bash
+#先将字体文件上传到zabbix服务器中
+cd /usr/share/zabbix/assets/fonts/
+
+#备份原字体
+cp graphfont.ttf graphfont.ttf.bak
+
+rm -f graphfont.ttf
+
+cp /root/msyh.ttc .
+
+mv msyh.ttc graphfont.ttf
+```
+
+
+
+### 7. 模板
+
+
+
+## 5、用户参数
+
+### 1. 介绍和用法
+
+语法格式
+
+```bash
+UserParameter=<key>,<command>
+```
+
+### 2. 用法展示
+
+#### (1) 修改agent端配置，设置用户参数
+
+自己需要查找的参数的命令
+
+```bash
+free | awk '/^Mem/{print $3}'
+```
+
+修改配置文件
+
+```bash
+cd /etc/zabbix/zabbix_agentd.d/
+vim memory_usage.conf
+
+UserParameter=memory.used,free | awk '/^Mem/{print $3}'
+UserParameter=memory.free,free | awk '/^Mem/{print $4}'
+```
+
+重启agent服务
+
+```bash
+systemctl restart zabbix-agent
+```
+
+#### (2) server 端验证
+
+```bash
+zabbix_get -s 192.168.1.157 -p 10050 -k "memory.used"
+zabbix_get -s 192.168.1.157 -p 10050 -k "memory.free"
+```
+
+查看是否有返回值
+
+#### (3) 创建监控项
+
+配置-->主机-->node1-->监控项-->创建监控项
+
+ ![image-20221111184605010](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20221111184605010.png)
+
+查看图形
+
+### 3. 用法升级
+
+#### (1) 修改agent 端的配置，设置用户参数
+
+命令行查询参数的命令
+
+```bash
+cat /proc/meminfo
+```
+
+ ![image-20221111184821689](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20221111184821689.png)
+
+修改配置文件，把查找参数的命令设为用户参数
+
+```bash
+#继续添加
+UserParameter=memory.stats[*],cat /proc/meminfo | awk '/^$1/{print $$2}'
+
+#重启agent服务
+systemctl restart zabbix-agent
+```
+
+> 注意：$$2：表示不是前边调位置参数的$1，而是awk 的参数$2
+> 注意：$1是调用前边的[*]，位置参数，第一个参数
+
+#### (2) 在zabbix-server 端，查询使用这个用户参数的key
+
+```bash
+#传参:
+[root@zabbix-server fonts]# zabbix_get -s 192.168.1.157 -p 10050 -k "memory.stats[MemTotal]"
+999696
+[root@zabbix-server fonts]# zabbix_get -s 192.168.1.157 -p 10050 -k "memory.stats[Cache]"
+243832
+[root@zabbix-server fonts]# zabbix_get -s 192.168.1.157 -p 10050 -k "memory.stats[Buffer]"
+2108
+```
+
+#### (3) 设置监控项，使用这个参数
+
+ ![image-20221111185226882](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20221111185226882.png)
+
+在进程中定义倍数，规定单位
+
+ ![image-20221111185317811](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20221111185317811.png)
+
+克隆Memory Total 创建Memory Free 的监控项
+
+ ![image-20221111185342668](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20221111185342668.png)
+
+#### (4) 查看
+
+查看添加的监控项图形
+
+#### (5) mysql主从
+
+从库安装zabbix-agent
+
+```bash
+UserParameter=mysql.sync,/usr/local/mysql/bin/mysql -uzabbix -p123456 -h 192.168.1.135  2>/dev/null -e "show slave status \G" | grep -E 'Slave_IO_Running: Yes|Slave_SQL_Running: Yes' | grep -c Yes
+```
+
+配置没问题，从server检查时出现返回值为0时，要指定ip登录mysql
+
+主库授权账户zabbix
+
+```mysql
+grant all privileges on *.* to 'zabbix'@'%' identified by '123456';
+flush privileges;
+```
+
+zabbix-server端检查
+
+```bash
+zabbix_get -s 192.168.1.135 -p 10050 -k "mysql.sync"
+```
+
+
+
+### 4. 使用用户参数监控 php-fpm 服务的状态
+
+#### (1) 在agent端下载php-fpm
+
+```bash
+yum -y install php-fpm
+vim /etc/php-fpm.d/www.conf
+
+user = nginx
+group = nginx
+pm.status_path = /php-fpm-status    #php-fpm 的状态监测页面 ，#打开注释并修改
+ping.path = /ping      #ping 接口，存活状态是否ok   #打开注释
+ping.response = pong    #响应内容pong  #打开注释
+
+#启动php-fpm服务
+systemctl start php-fpm
+```
+
+#### (2) 设置nginx
+
+设置代理php，和php-fpm的状态页面匹配
+
+```bash
+yum -y install nginx
+
+vim /etc/nginx/nginx.conf
+```
+
+```nginx
+server {
+        listen       80 default_server;
+        listen       [::]:80 default_server;
+        server_name  _;
+        root         /usr/share/nginx/html;
+
+        # Load configuration files for the default server block.
+        include /etc/nginx/default.d/*.conf;
+
+        location / {
+        }
+        location ~ \.php$ {
+            fastcgi_pass   127.0.0.1:9000;
+            fastcgi_index  index.php;
+            fastcgi_param  SCRIPT_FILENAME  $document_root$fastcgi_script_name;
+            include        fastcgi_params;
+        }
+        location ~* /(php-fpm-status|ping) {
+            fastcgi_pass   127.0.0.1:9000;
+            fastcgi_index  index.php;
+            fastcgi_param  SCRIPT_FILENAME  $fastcgi_script_name;
+            include        fastcgi_params;
+
+            access_log off;   #访问这个页面就不用记录日志了
+       }
+}
+```
+
+```bash
+nginx -t
+
+nginx -s reload
+```
+
+#### (3) 在agent 端，设置用户参数
+
+查询
+
+```bash
+curl 192.168.1.157/php-fpm-status
+```
+
+参数说明
+
+```bash
+pool – fpm池子名称，大多数为www
+process manager – 进程管理方式,值：static, dynamic or ondemand. dynamic
+start time – 启动日期,如果reload了php-fpm，时间会更新
+start since – 运行时长
+accepted conn – 当前池子接受的请求数
+listen queue – 请求等待队列，如果这个值不为0，那么要增加FPM的进程数量
+max listen queue – 请求等待队列最高的数量
+listen queue len – socket等待队列长度
+idle processes – 空闲进程数量
+active processes – 活跃进程数量
+total processes – 总进程数量
+max active processes – 最大的活跃进程数量（FPM启动开始算）
+max children reached - 达到进程最大数量限制的次数，如果这个数量不为0，那说明你的最大进程数量太小了，请改大一点。
+```
+
+设置
+
+```bash
+cd /etc/zabbix/zabbix_agentd.d/
+vim php_status.conf
+
+UserParameter=php-fpm.stats[*],curl -s http://192.168.246.226/php-fpm-status | awk '/$1/{print $$NF}'
+```
+
+> 设置用户参数为php-fpm.stats[*]，$1为第一个参数；$$NF为awk中的参数
+
+重启服务
+
+```bash
+systemctl restart zabbix-agent
+```
+
+#### (4) 在zabbix-server 端，查询使用这个用户参数的key
+
+```bash
+[root@zabbix-server fonts]# zabbix_get -s 192.168.1.157 -p 10050 -k "php-fpm.stats[idle]"
+4
+[root@zabbix-server fonts]# zabbix_get -s 192.168.246.226 -p 10050 -k "php-fpm.stats[active]"
+1
+[root@zabbix-server fonts]# zabbix_get -s 192.168.246.226 -p 10050 -k "php-fpm.stats[max active]"
+1
+```
+
+#### (5) 创建模板，创建4个监控项
+
+创建模板
+
+![image-20221111190310562](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20221111190310562.png)
+
+![image-20221111190321615](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20221111190321615.png)
+
+在模板上创建监控项
+
+
+
+#### (6) host主机链接模板
+
+配置--主机--node1---模板---选择---fpm status ---添加---更新
+
+![image-20221111190428880](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20221111190428880.png)
+
+#### (7) 查看图形
+
+
+
+#### (8) 导出模板
+
+ ![image-20221111190544440](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20221111190544440.png)
+
+最下面有导出
+
+ ![image-20221111190557725](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20221111190557725.png)
+
+> 自己定义用户参数的文件，也不要忘记导出
+
+```bash
+/etc/zabbix/zabbix_agentd.d/php_status.conf
+```
+
+
+
+## 5、自动发现
+
+Network discovery 网络发现
+
+### 1. 配置网络发现
+
+#### (1) 利用第二台主机
+
+安装agent端的包
+
+```bash
+yum -y install zabbix-agent zabbix-sender
+```
+
+设置agent 配置，可以把之前设置好的node1的配置传过来
+
+```bash
+vim /etc/zabbix/zabbix_agentd.conf
+
+Hostname=zabbix-node2
+#只需修改hostname
+```
+
+```bash
+visudo
+#修改sudo的配置,添加如下信息
+#Defaults !visiblepw
+
+#100行左右，添加
+zabbix ALL=(ALL) NOPASSWD: ALL
+```
+
+ ![image-20221111191130194](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20221111191130194.png)
+
+开启服务
+
+```bash
+systemctl start zabbix-agent
+```
+
+#### (2) 设置自动发现规则discovery
+
+配置--自动发现--创建自动发现规则
+
+> **ip范围不要给的太大**
+
+![image-20221111191250176](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20221111191250176.png)
+
+ ![image-20221111191256896](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20221111191256896.png)
+
+ ![image-20221111191329241](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20221111191329241.png)
+
+![image-20221111191340277](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20221111191340277.png)
+
+在zabbix-server端
+
+```bash
+zabbix_get -s 192.168.1.158 -p 10050 -k "system.hostname"
+```
+
+更新间隔：1h就好，不要扫描太过频繁，扫描整个网段，太废资源；这里为了实验，设为1m
+
+#### (3) 自动发现成功
+
+![image-20221111191458463](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20221111191458463.png)
+
+#### (4) 设置自动发现discovery 的动作action
+
+创建
+
+![image-20221111191522020](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20221111191522020.png)
+
+设置action动作
+
+![image-20221111191604619](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20221111191604619.png)
+
+> ① 设置A条件，自动发现规则=test net
+> ② 设置B条件，自动发现状态=up
+
+ ![image-20221111191621383](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20221111191621383.png)
+
+要做什么操作：添加主机到监控
+
+ ![image-20221111191644126](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20221111191644126.png)
+
+ ![image-20221111191658163](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20221111191658163.png)
+
+自动链接Template OS Linux 到此host
+
+ ![image-20221111191712541](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20221111191712541.png)
+
+ ![image-20221111191730137](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20221111191730137.png)
+
+ ![image-20221111191737521](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20221111191737521.png)
+
+ ![image-20221111191745679](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20221111191745679.png)
+
+ ![image-20221111191751222](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20221111191751222.png)
+
+配置action 完成，默认是disabled 停用的，如果不是停用的，也需要再次选择启动，激活一下
+
+ ![image-20221111191806785](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20221111191806785.png)
+
+启用动作，查看效果--需要等待一会
+
+确实已经生效，添加主机成功，模板链接成功
+
+![image-20200920225444128](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20200920225444128.png)
+
+#### (5) 如果自己需要添加的主机已经扫描添加完成，就可以关闭网络扫描了，因为太耗资源
+
+
+
+## 6、web监控
+
+### 1、介绍
+
+（1）介绍
+
+① Web监控：监控指定的站点的**资源下载速度**，及**页面响应时间**，还有**响应代码**；
+
+### 2、创建设置web场景
+
+配置--主机--node1--web场景--创建web场景
+
+（1）创建
+
+![image-20200920225619550](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20200920225619550.png)
+
+ 
+
+（2）配置web 监测
+
+ ![1564766856663](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/1564766856663.png)
+
+① 点击步骤，设置web page web页面
+
+![1564766770288](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/1564766770288.png)
+
+a) 设置名为home page，URL为http://192.168.246.226/index.html 的web页面
+
+ ![1564766946997](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/1564766946997.png)
+
+b) 设置名为fpm status，URL为http://192.168.1.158/fpm-status 的web页面
+
+ ![1564767040849](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/1564767040849.png)
+
+c) 设置2个web页面成功
+
+![1564767064912](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/1564767064912.png)
+
+### 3、查看测试
+
+![image-20200920230217534](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20200920230217534.png)
+
+![image-20200920230233755](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20200920230233755.png)
+
+![image-20200920230308662](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20200920230308662.png)
+
+## 7、主动/被动 监控
+
+### 1、介绍
+
+（1）主动/被动介绍
+
+```bash
+被动检测：相对于agent而言；agent, server向agent请求获取配置的各监控项相关的数据，agent接收请求、获取数据并响应给server；
+
+主动检测：相对于agent而言；agent(active),agent向server请求与自己相关监控项配置，主动地将server配置的监控项相关的数据发送给server；主动监控能极大节约监控server 的资源。
+```
+
+### 2、设置一个通过內建key发送数据的主动监控
+
+（1）agent端所需要基本配置：
+
+```
+[root@zabbix-agent-none1 ~]# vim /etc/zabbix/zabbix_agentd.conf
+ServerActive=192.168.246.228   给哪个监控server 发送数据
+Hostname=zabbix-agent-none1   自己的主机名.
+```
+
+ （2）设置一个主动监测
+
+ ![1564766277632](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/1564766277632.png)
+
+配置---主机--none1--监控项---创建监控项
+
+ ![1564766382337](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/1564766382337.png)
+
+① 选择进程，每秒更改，---添加
+
+因为key：system.cpu.switches ：上下文的数量进行切换，它返回一个整数值。为了监控效果，选择下一秒减上一秒的值作为监控
+
+注释:可运行的线程数大于CPU的数量，那么OS最终会强行换出正在执行的线程，从而使其他线程能够使用CPU。这会引起上下文切换.
+
+ ![img](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/1216496-20171226172043120-1810882608.png)
+
+（3）已经有图形
+
+![1564766488195](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/1564766488195.png)
+
+## 8、zabbix-server 监控自己，数据库，nginx
+
+### 1. 下载安装，配置agent
+
+配置agent,添加并修改
+
+```bash
+vim /etc/zabbix/zabbix_agentd.conf
+
+EnableRemoteCommands=1    #允许远程命令
+LogRemoteCommands=1    #记录远程命令
+Server=127.0.0.1
+ServerActive=127.0.0.1
+Hostname=zabbix-server
+
+#开启agent服务
+systemctl start zabbix-agent
+```
+
+### 2. 自动生成Zabbix server 的主机
+
+配置---主机
+
+ ![img](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/1216496-20171226172101526-749330259.png)
+
+### 3. 在主机中添加模板
+
+配置--主机---zabbix--server---模板---选择Template DB MYsql -----添加 -----更新
+
+![image-20200921220303198](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20200921220303198.png)
+
+ ![image-20200921220321618](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20200921220321618.png)
+
+ ![image-20200921220350383](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20200921220350383.png)
+
+![image-20200921220404906](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20200921220404906.png)
+
+### 4. 启用Zabbix server
+
+![1564765912796](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/1564765912796.png)
+
+![image-20200921220503575](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20200921220503575.png)
+
+### 5. 监控到数据
+
+ ![img](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/1216496-20171226172102698-926445046.png)
+
+##### 10、实现分布式 zabbix proxy 监控
+
+```ini
+使用zabbix-proxy有两个情况
+
+1、agent在一个网段，server在另一个网段，这个时候需要一台能够连接server网段的机器来将agent的数据传输过去
+2、减轻server的服务器压力
+小数目的agent于server而言，监测数据占用资源倒不大，但是agent机器一旦多起来，server处理起来就麻烦了，消耗的资源自然就会很多，这个时候有一个proxy机器来跟agent连接，收集数据，然后传送给server，如此一来，server只需和proxy进行连接，瞬间连接数就少了很多，消耗的资源也就下降了.
+如果是agent和server直接连接，假设一台server的资源最多只能和50台agent连接（打个比方，具体还得看server服务器的性能），那么如果换成一台proxy去收集这50台agent的数据，那么server可以通过和一台proxy连接来达到监测50台agent的目的，那么如果server和5台proxy连接，那么如此一算，便达到了一台server同时对5*50=250台agent监测的目的，这么弄一下，server能监测的数量一下就翻了好几翻。
+```
+
+ ![image-20200927222413169](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20200927222413169.png)
+
+流程
+
+```ini
+zabbix-agent服务器将监测到的数据通过10050端口传递给到zabbix-proxy，然后zabbix-proxy服务器本身有一个数据库，用来存放收集到的数据，定期的通过10051端口给真正的zabbix-server传送收集到的数据，如此一来，就达到了zabbix-server通过proxy对agent进行监测的目的了。
+```
+
+ ![image-20200927222321484](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20200927222321484.png)
+
+```ini
+- ntpdate 192.168.198.156 制作时间服务器
+[root@zabbix-server ~]# yum install -y ntp
+[root@zabbix-server ~]# vim /etc/ntp.conf  #有4行server的位置，把那4行server行注释掉，填写以下两行
+server 127.127.1.0 # local clock
+fudge  127.127.1.0 stratum 10
+[root@zabbix-server ~]#  systemctl start ntpd
+[root@zabbix-server ~]#  systemctl enable ntpd
+同步时间
+[root@zabbix-proxy ~]# yum install -y ntpdate
+[root@zabbix-proxy ~]# ntpdate 192.168.198.156
+
+[root@zabbix-node2 ~]# yum install -y ntpdate
+[root@zabbix-node2 ~]# ntpdate 192.168.198.156
+
+- 关闭防火墙，selinux
+- 设置主机名 hostnamectl set-hostname zabbix-proxy
+[root@localhost ~]# hostnamectl set-hostname zabbix-proxy
+
+- vim /etc/hosts 每个机器都设置hosts，以解析主机名；
+监控端
+[root@zabbix-server ~]# cat /etc/hosts
+192.168.198.156 zabbix-server
+192.168.198.158 zabbix-node2
+192.168.198.159 zabbix-proxy
+
+代理端
+[root@zabbix-proxy ~]# cat /etc/hosts
+192.168.198.156 zabbix-server
+192.168.198.158 zabbix-node2
+192.168.198.159 zabbix-proxy
+
+被监控端
+[root@zabbix-node2 ~]# cat /etc/hosts
+192.168.198.156 zabbix-server
+192.168.198.158 zabbix-node2
+192.168.198.159 zabbix-proxy
+```
+
+###### 1、环境配置（4台主机）
+
+| 机器名称      | IP配置          | 服务角色  |
+| ------------- | --------------- | --------- |
+| zabbix-server | 192.168.198.156 | 监控      |
+| zabbix-node1  | 192.168.198.157 | 被监控端  |
+| zabbix-node2  | 192.168.198.158 | 被监控端  |
+| zabbix-proxy  | 192.168.198.159 | 代理proxy |
+
+```ini
+zabbix-server 直接监控一台主机 node1
+
+zabbix-server 通过代理 zabbix-proxy 监控 node2
+```
+
+##### 3、在 zabbix-proxy 上配置 mysql
+
+```mysql
+[root@zabbix-proxy ~]# yum install -y mariadb mariadb-server
+[root@zabbix-proxy ~]# systemctl start mariadb
+[root@zabbix-proxy ~]# mysqladmin -uroot password 'zabbix'
+[root@zabbix-proxy ~]# mysql -uroot -p'zabbix'
+MariaDB [(none)]> create database proxydb character set 'utf8';
+MariaDB [(none)]> grant all on proxydb.* to 'proxy'@'localhost' identified by 'zabbix';
+MariaDB [(none)]> flush privileges;
+MariaDB [(none)]> \q
+```
+
+##### 4、在 zabbix-proxy上下载zabbix 相关的包，主要是代理proxy的包
+
+```ini
+[root@zabbix-server ~]# scp /etc/yum.repos.d/zabbix.repo 192.168.198.159:/etc/yum.repos.d/
+编辑zabbix.repo源将里面的gpgcheck关闭
+[root@zabbix-proxy ~]# yum -y install zabbix-proxy-mysql zabbix-get zabbix-agent zabbix-sender
+```
+
+将zabbix-proxy-mysql包里面的数据导入数据库中
+
+![image-20200921175045879](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20200921175045879.png)``
+
+```mysql
+[root@zabbix-proxy ~]# cp /usr/share/doc/zabbix-proxy-mysql-5.0.3/schema.sql.gz ./
+[root@zabbix-proxy ~]# ls
+anaconda-ks.cfg  schema.sql.gz
+[root@zabbix-proxy ~]# gzip -d schema.sql.gz 
+[root@zabbix-proxy ~]# ls
+anaconda-ks.cfg  schema.sql
+[root@zabbix-proxy ~]# mysql -uroot -p proxydb < schema.sql 
+Enter password:
+```
+
+配置proxy端
+
+```ini
+[root@zabbix-proxy ~]# vim /etc/zabbix/zabbix_proxy.conf
+```
+
+ ![image-20200921175518831](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20200921175518831.png)
+
+```ini
+Server=192.168.198.156        # server端 的IP
+ServerPort=10051             # server端 的端口
+
+Hostname=zabbix-proxy        # 主机名
+ListenPort=10051             # proxy自己的监听端口
+EnableRemoteCommands=1       # 允许远程命令
+LogRemoteCommands=1          # 记录远程命令的日志
+
+# 数据的配置
+DBHost=localhost
+DBName=proxydb
+DBUser=proxy
+DBPassword=zabbix
+
+ConfigFrequency=30      # 多长时间，去服务端拖一次有自己监控的操作配置；为了实验更快的生效，这里设置30秒，默认3600s
+DataSenderFrequency=1   # 每一秒向server 端发一次数据，发送频度
+
+
+[root@zabbix-proxy ~]# systemctl start zabbix-proxy
+
+[root@zabbix-proxy ~]# netstat -lntp | grep 10051
+tcp        0      0 0.0.0.0:10051           0.0.0.0:*               LISTEN      15798/zabbix_proxy  
+tcp6       0      0 :::10051                :::*                    LISTEN      15798/zabbix_proxy
+```
+
+### 6. 配置node2端允许proxy代理监控
+
+```bash
+[root@zabbix-node2 ~]#  vim /etc/zabbix/zabbix_agentd.conf	---添加proxy的ip地址
+Server=192.168.198.156,192.168.198.159
+ServerActive=192.168.198.156,192.168.198.159
+Hostname=zabbix-node2
+[root@zabbix-node2 ~]#  systemctl restart zabbix-agent #启动服务
+```
+
+### 7. 把代理加入监控 server 创建配置 agent 代理
+
+管理---agent代理--创建代理
+
+![image-20200921214625870](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20200921214625870.png)
+
+ ![image-20200921214733677](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20200921214733677.png)
+
+创建node2主机并采用代理监控
+
+配置---主机--创建主机
+
+![image-20200921214900634](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20200921214900634.png)
+
+![image-20200921215104434](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20200921215104434.png)
+
+![image-20200921215727504](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20200921215727504.png)
+
+### 创建item监控项
+
+##### 1、随便创一个监控项 CPU Switches
+
+![image-20200921215229828](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20200921215229828.png)
+
+![image-20200921215247041](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20200921215247041.png)
+
+![image-20200921215427957](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20200921215427957.png)
+
+![image-20200921215447024](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20200921215447024.png)
+
+ ![image-20200921215506946](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20200921215506946.png)
+
+![image-20200921215643205](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20200921215643205.png)
+
+![image-20200921215652868](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20200921215652868.png)
+

@@ -1,0 +1,48 @@
+# luna_pinyin.custom.yaml
+
+
+patch:
+# 指定自定义总词典位置
+  'translator/dictionary': luna_pinyin_simp.myself.config
+
+# 导入符号
+  'punctuator/import_preset': mysymbols
+  'recognizer/patterns/punct': "^/([a-z]+|[0-9])$"
+
+# 顿号自动上屏
+  punctuator/full_shape:
+    '\' : '、'
+    # '/' : '/'
+    # "`": {commit: "·"}
+    # '<' : '《'
+    # '>' : '》'
+  punctuator/half_shape:
+    '\' : '、'
+    # '/' : '/'
+    # "`": {commit: "·"}
+    # '<' : '《'
+    # '>' : '》'
+
+  "speller/algebra":
+    - abbrev/^([bcdfghjklprstvwxyz]).+$/$1/       # 對齊標準行
+    - derive/^tzi/ci/                             # 以下四行是模糊分尖團音
+    - derive/^tsi/chi/
+    - derive/^zi/ji/
+    - derive/^si/xi/
+    - derive/^(ch|d?j|gn|x|y)i([aeou])/$1$2/      # 本行不要改動
+    - derive/^tzyu/tzy/                           # 以下四行是模糊“書”“詩”
+    - derive/^tsyu/tsy/
+    - derive/^zyu/zy/
+    - derive/^syu/sy/
+    - derive/(.*)ij/$1i/                          # 模糊“煙”“衣”
+    - derive/(.*)iaq/$1iq/                        # 模糊“約”“一”
+    - derive/^yaq/yiq/                            # 模糊“藥”“頁”
+    - derive/(.*)aon/$1an/                        # 模糊前後an
+    - derive/(.*)aq/$1eq/                         # 模糊“搭”“得”
+    - derive/(.*)eq/$1aq/
+    - derive/^yeu/yu/                             # 模糊“遠”“與”
+    - derive/(.*)ieu/$1iu/                        # 模糊“宛”“餵”
+    - derive/^vu/wu/                              # 模糊“無”“何”
+    - derive/(.*)ueu/$1eu/                        # 模糊“碗”“按”
+    - derive/^weu/reu/                            # 模糊“換”“汗”
+    - derive/^au/u/                               # 模糊“查”“坐”

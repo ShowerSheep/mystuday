@@ -1,0 +1,231 @@
+# 防火墙 Firewalld
+
+## 1、iptables 表，链
+
+### 1.四表
+
+必须是小写
+
+> raw   ------------追踪数据包， ----此表用处较少，可以忽略不计
+> mangle   -------- 给数据打标记,做标记
+> nat   ---------网络地址转换即来源与目的的IP地址和port的转换。
+> filter   --------做过滤的，防火墙里面用的最多的表。
+
+表的应用顺序：raw -> mangle -> nat -> filter
+
+### 2. 五链
+
+必须是大写，链里面写的是规则
+
+> PREROUTING  ---------------------进路由之前数据包，一般用来做目标地址转换较多
+> INPUT    -----------------就是过滤进来的数据包（输入）
+> FORWARD -----------------转发
+> OUTPUT  ---------------发出去的数据包
+> POSTROUTING    --------------路由之后修改数据包，一般用来做源地址转换较多
+
+所有的访问都是按顺序:
+入站:比如访问自身的web服务流量。先PREROUTING（是否改地址），再INPUT（是否允许）到达程序。
+转发:经过linux的流量.先PREROUTING（是否改地址），然后路由。转发给FORWARD（转发或者丢弃），最后经过POSTROUTING（看看改不改地址。）
+出站:源自linux自身的流量.先OUTPUT，然后路由。再给POSTROUTING（是否改IP）。
+规则顺序:逐条匹配，匹配即停止。
+
+### 3. 四表五链
+
+```ini
+raw表里面：
+PREROUTING
+OUTPUT
+总结:数据包跟踪  内核模块iptables_raw
+===================================================
+mangel表里面有5个链：
+PREROUTING  
+INPUT    
+FORWARD 
+OUTPUT 
+POSTROUTING
+路由标记用的表。内核模块iptables_mangle
+===================================================
+nat表里面的链：
+PREROUTING
+INPUT
+OUTPUT
+POSTROUTING
+转换地址的表(改IP，改端口。内核模块叫iptable_nat)
+===================================================
+filter表有三个链：重点
+INPUT    #负责过滤所有目标是本机地址的数据包通俗来说：就是过滤进入主机的数据包
+FORWARD  #负责转发经过主机的数据包。起到转发的作用
+OUTPUT   #处理所有源地址是本机地址的数据包通俗的讲：就是处理从主机发出的数据包
+总结:根据规则来处理数据包，如转或者丢。就是实现主机型防火墙的主要表。
+内核模块 iptable_filter
+```
+
+
+
+## 2、iptables管理工具 firewall-cmd
+
+### 1. firewall-cmd命令
+
+```bash
+firewall-cmd --permanent
+--permanent   #永久生效的配置参数、资源、端口以及服务等信息
+1、域zone相关的命令
+--get-default-zone  #查询默认的区域名称
+--set-default-zone=<区域名称>   #设置默认的区域
+--get-active-zones  #显示当前正在使用的区域与网卡名称
+--get-zones         #显示总共可用的区域
+2、services管理的命令
+--add-service=<服务名> --zone=<区域>       #设置指定区域允许该服务的流量
+--remove-service=<服务名> --zone=<区域>    #设置指定区域不再允许该服务的流量
+3、Port相关命令
+--add-port=<端口号/协议> --zone=<区域>      #设置指定区域允许该端口的流量
+--remove-port=<端口号/协议> --zone=<区域>   #设置指定区域不再允许该端口的流量
+4、查看所有规则的命令
+--list-all --zone=<区域>  显示指定区域的网卡配置参数、资源、端口以及服务等信息
+--reload   #让“永久生效”的配置规则立即生效，并覆盖当前的配置规则
+```
+
+### 2. firewalld配置使用
+
+1、查看默认区域
+
+```bash
+[root@iptables-server ~]# firewall-cmd --get-default-zone
+public
+验证:
+在192.168.246.201机器上访问192.168.246.200
+[root@iptables-test ~]# curl -I http://192.168.246.200   #不通
+curl: (7) Failed connect to 192.168.246.200:80; No route to host
+[root@iptables-test ~]# ssh root@192.168.246.200  #ssh 可以
+root@192.168.246.200's password:
+```
+
+2、更该默认区域
+
+```bash
+[root@iptables-server ~]# firewall-cmd --set-default-zone=trusted
+success
+[root@iptables-server ~]# firewall-cmd --reload
+success
+[root@iptables-server ~]# firewall-cmd --get-default-zone
+trusted
+验证:
+在192.168.246.201机器上访问192.168.246.200
+[root@iptables-test ~]# curl -I http://192.168.246.200  #访问成功
+HTTP/1.1 200 OK
+================================================
+修改回默认区域:
+[root@iptables-server ~]#  firewall-cmd --set-default-zone=public
+success
+[root@iptables-server ~]# firewall-cmd --reload
+success
+```
+
+3、向public区域添加服务
+
+```bash
+[root@iptables-server ~]#  firewall-cmd --permanent --add-service=http --zone=public
+success
+[root@iptables-server ~]# firewall-cmd --reload   #重新加载配置文件
+success
+验证:
+在192.168.246.201机器上访问192.168.246.200
+[root@iptables-test ~]# curl -I http://192.168.246.200
+HTTP/1.1 200 OK
+```
+
+4.指定IP地址为192.168.246.201/24的客户端进入drop区域
+
+```bash
+[root@iptables-server ~]# firewall-cmd --permanent --add-source=192.168.246.201/24 --zone=drop
+success
+[root@iptables-server ~]# firewall-cmd --reload
+success
+验证:
+在192.168.246.201的机器上访问246.200
+[root@iptables-test ~]# curl -I http://192.168.246.200  #访问不通
+```
+
+5.将192.168.246.201/24移除drop区域
+
+```bash
+[root@iptables-server ~]# firewall-cmd --permanent --remove-source=192.168.246.201/24 --zone=drop
+success
+[root@iptables-server ~]# firewall-cmd --reload
+success
+验证:
+在192.168.246.201的机器上面访问246.200
+[root@iptables-test ~]# curl -I http://192.168.246.200  #访问成功
+HTTP/1.1 200 OK
+```
+
+6.向pubic区域添加服务，以添加端口的方式 
+
+```bash
+[root@iptables-server ~]#  firewall-cmd --permanent --add-port=80/tcp --zone=public
+success
+[root@iptables-server ~]# firewall-cmd --reload
+success
+验证:
+用192.168.246.201访问192.168.246.200机器
+[root@iptables-test ~]# curl -I http://192.168.246.200
+HTTP/1.1 200 OK
+```
+
+7.删除服务、端口
+
+```bash
+[root@iptables-server ~]# firewall-cmd --permanent --remove-service=http --zone=public 
+success
+[root@iptables-server ~]# firewall-cmd --reload
+success
+验证:
+用192.168.246.201访问192.168.246.200机器
+[root@iptables-test ~]# curl -I http://192.168.246.200   #访问通
+HTTP/1.1 200 OK
+====================================================================================
+[root@iptables-server ~]# firewall-cmd --permanent --remove-port=80/tcp --zone=public 
+success
+[root@iptables-server ~]# firewall-cmd --reload
+success
+验证:
+在192.168.246.201访问192.168.246.200机器
+[root@iptables-test ~]# curl -I http://192.168.246.200  #访问失败
+curl: (7) Failed connect to 192.168.246.200:80; No route to host
+```
+
+8.添加服务端口
+
+```
+打开443/TCP端口,立即生效
+[root@zcwyou ~]# firewall-cmd  --permanent --add-port=443/tcp
+[root@zcwyou ~]#firewall-cmd --reload
+永久打开3306/TCP端口
+[root@zcwyou ~]# firewall-cmd --permanent --add-port=3690/tcp
+[root@zcwyou ~]# firewall-cmd --reload
+开放自定义的ssh端口号为12222  （--permanent参数可以将永久保存到配置文件）
+[root@zcwyou ~]# firewall-cmd --add-port=12222/tcp --permanent
+[root@zcwyou ~]# firewall-cmd --reload
+添加端口范围
+[root@zcwyou ~]# firewall-cmd --add-port=2000-4000/tcp --permanent
+针对指定zone XX添加端口
+[root@zcwyou ~]# firewall-cmd --permanent --zone=XX --add-port=443/tcp
+```
+
+9.允许或拒绝某个IP地址的访问
+
+```
+允许来自主机 192.168.0.14 的所有 IPv4 流量。
+[root@zcwyou ~]# firewall-cmd --permanent --zone=public --add-rich-rule 'rule family="ipv4" source address=192.168.0.14 accept'
+拒绝来自主机 192.168.1.10 到 22 端口的 IPv4 的 TCP 流量。
+[root@zcwyou ~]# firewall-cmd --permanent --zone=public --add-rich-rule 'rule family="ipv4" source address="192.168.1.10" port port=22 protocol=tcp reject'
+删除规则
+[root@zcwyou ~]# firewall-cmd --permanent --zone=public --remove-rich-rule 'rule family="ipv4" source address=192.168.0.14 accept'
+```
+
+
+
+
+
+
+

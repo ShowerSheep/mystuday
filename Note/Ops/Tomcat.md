@@ -1,0 +1,364 @@
+# Web中间件：Tomcat
+
+## 一、JDK Tomcat 安装
+
+### 1. jdk安装
+
+```bash
+tar xf jdk-8u311-linux-x64.tar.gz -C /usr/local/
+
+cat >> ~/.bashrc <<EOF
+export JAVA_HOME=/usr/local/jdk1.8.0_311
+export JRE_HOME=\${JAVA_HOME}/jre
+export CLASSPATH=.:\${JAVA_HOME}/lib:\${JRE_HOME}/lib
+export PATH=\${JAVA_HOME}/bin:\$PATH
+EOF
+```
+
+### 2. Tomcat 安装
+
+```bash
+tar xzf apache-tomcat-8.5.83.tar.gz
+
+mv apache-tomcat-8.5.83 /usr/local/tomcat
+```
+
+查看版本
+
+```bash
+/usr/local/tomcat/bin/version.sh 
+```
+
+启动停止服务
+
+```bash
+/usr/local/tomcat/bin/startup.sh
+
+/usr/local/tomcat/bin/shutdown.sh
+```
+
+## 二、nginx与Tomcat动静分离
+
+nginx实现反代负载将动态请求转发至tomcat
+
+### 1. 环境要求
+
+nginx:192.168.1.133
+
+tomcat:192.168.1.151
+
+### 2. nginx反代负载配置
+
+```bash
+vim /usr/local/nginx/conf/tomcat.conf
+```
+
+```nginx
+server {
+    listen       80;
+    server_name  ks.aa123.com;
+    #定义server主机的访问日志
+    access_log  logs/proxy.access.log  main;
+    location / {
+        proxy_pass http://tomcat-cluster;
+        proxy_redirect default;
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_connect_timeout 30;
+        proxy_send_timeout 60;
+        proxy_read_timeout 60;
+    }
+	location /status {
+        #健康状态监控页面html格式
+        healthcheck_status;
+    }
+}
+upstream tomcat-cluster {
+	ip_hash;
+    server 192.168.1.151:8080;
+    #健康检查配置
+    check interval=3000 rise=2 fall=5 timeout=5000 type=http;
+    #健康检查HTTP动作
+    check_http_send "GET / HTTP/1.0\r\n\r\n";
+    #健康状态HTTP代码2xx 3xx
+    check_http_expect_alive http_2xx http_3xx;
+}
+```
+
+`nginx.conf` 中的配置
+
+```nginx
+http{
+    .....
+    include tomcat.conf;
+}
+```
+
+### 3. 访问
+
+```bash
+nginx -t
+# 检查语法
+
+nginx -s reload
+# 重载配置文件
+```
+
+> 在本机hosts记录添加 `192.168.1.133 ks.aa123.com`
+>
+> 浏览器访问 `ks.aa123.com`
+
+### 4. 静态资源缓存
+
+```nginx
+server {
+    listen       80;
+    server_name  ks.aa123.com;
+    #定义server主机的访问日志
+    access_log  logs/proxy.access.log  main;
+    location / {
+        proxy_pass http://tomcat-cluster;
+        proxy_redirect default;
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_connect_timeout 30;
+        proxy_send_timeout 60;
+        proxy_read_timeout 60;
+    }
+	##静态资源类型，匹配以gif|jpg|jpeg|png|svg|css|js|swf|flv|txt文件结尾的静态资源
+	location ~* \.(gif|jpg|jpeg|png|svg|css|js|swf|flv|txt)$ {
+        ##静态资源目录，指定为tomcat目录
+        root /usr/local/tomcat/webapps/ROOT;
+        proxy_pass http://tomcat-cluster;
+        ##设置过期时间，在时间内浏览器使用本地缓存
+        expires 2d;
+	}
+	location /status {
+        #健康状态监控页面html格式
+        healthcheck_status;
+    }
+}
+upstream tomcat-cluster {
+	ip_hash;
+    server 192.168.1.151:8080;
+    #健康检查配置
+    check interval=3000 rise=2 fall=5 timeout=5000 type=http;
+    #健康检查HTTP动作
+    check_http_send "GET / HTTP/1.0\r\n\r\n";
+    #健康状态HTTP代码2xx 3xx
+    check_http_expect_alive http_2xx http_3xx;
+}
+```
+
+## 三、proxy_pass在本地建立缓存加速访问
+
+
+
+### 1. 建立缓存目录、配置
+
+```bash
+mkdir -p /data/{proxy_temp_path,proxy_cache_path}
+chown -R nginx:nginx  /data/{proxy_temp_path,proxy_cache_path}
+```
+
+反代时将静态资源缓存在本机磁盘
+
+```bash
+vim /usr/local/nginx/conf/proxy.conf
+```
+
+```nginx
+##定义缓存记录标记
+proxy_cache_key '$host:$server_port$request_uri';
+#缓存临时写入大小
+proxy_temp_file_write_size 1024k;
+#本地缓存临时目录
+proxy_temp_path /data/proxy_temp_path;
+#本地缓存目录,levels=1:2为2级目录， keys_zone=cache_one:200m缓存名为cache_one,200m大小，
+##inactive=5d，活路周期为5天，max_size=1g;最大空间为1gg
+proxy_cache_path /data/proxy_cache_path levels=1:2 keys_zone=cache_one:200m inactive=5d max_size=1g;
+#定义缓存忽略头部信息
+proxy_ignore_headers X-Accel-Expires Expires Cache-Control Set-Cookie Vary;
+```
+
+使用方法
+
+```nginx
+http {
+    include       mime.types;
+    ##调用
+    include proxy.conf;
+}	
+```
+
+###  2. 添加静态资源缓存写入配置
+
+```bash
+vim /usr/local/nginx/conf/halo.conf
+```
+
+```nginx
+server {
+    listen       80;
+    server_name  blog.shower.fit;
+    #定义server主机的访问日志
+    access_log  logs/proxy.access.log  main;
+    location / {
+        proxy_pass http://halo-blog;
+        proxy_redirect default;
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_connect_timeout 30;
+        proxy_send_timeout 60;
+        proxy_read_timeout 60;
+    }
+    location /status {
+        #健康状态监控页面html格式
+        check_status;
+    }
+    location ~* \.(gif|jpg|jpeg|png|svg|css|js|swf|flv|txt)$ {
+        ##静态资源缓存写入缓存目录
+        proxy_cache cache_one;
+        ##对200 304 302成功访问的静态资源缓存,30d表示30天
+        proxy_cache_valid 200 304 302 30d;
+        #增加http header头部信息X-Accel-Expires
+        add_header X-Accel-Expires 10800;
+        #增加http header头部信息Cache-Control 'max-age=10800'
+        add_header Cache-Control 'max-age=10800';
+        #增加http header头部信息X-Cache-Status，$upstream_cache_status表明状态，HIT为缓存,miss为未缓存
+        add_header X-Cache-Status $upstream_cache_status;
+        #增加http header头部信息X-Cache,添加HIT from blog.shower.fit，表示缓存的服务器
+        add_header X-Cache '$upstream_cache_status from $host';
+        ##定义本地硬盘缓存的索引值
+        proxy_cache_key '$host$uri$is_args$args';
+        ##定义反代的后端负载请求地址，无缓存或失效时则进行后端请求
+        proxy_pass http://halo-blog;
+	}
+}
+upstream halo-blog {
+	ip_hash;
+	server 127.0.0.1:8090;
+	#健康检查配置
+	check interval=3000 rise=2 fall=5 timeout=5000 type=http;
+	#健康检查HTTP动作
+	check_http_send "GET / HTTP/1.0\r\n\r\n";
+	#健康状态HTTP代码2xx 3xx
+	check_http_expect_alive http_2xx http_3xx;
+}
+```
+
+
+
+```nginx
+http{
+	...
+        
+	include proxy.conf;
+	include halo.conf;
+}
+```
+
+### 3. 检测
+
+```bash
+nginx -t
+
+nginx -s reload
+```
+
+访问查看
+
+### 4. 查看缓存目录
+
+```bash
+tree /data/proxy_cache_path/
+```
+
+ ![image-20221020142855392](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20221020142855392.png)
+
+### 5. 浏览器查看
+
+ ![image-20221020143046919](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20221020143046919.png)
+
+### 6. 清理缓存
+
+进入目录`/data/proxy_cache_path/`以后，将子目录删除即可清理全部缓存。或安装第三方模块ngx_cache_purge进行清理
+
+```bash
+cd /data/proxy_cache_path/
+rm -rf ./*
+```
+
+
+
+## 四、Tomcat多实例配置(tomcat集群)
+
+一台服务器跑多个站点
+
+### 1. 复制tomcat程序文件
+
+```bash
+cp -r /usr/local/tomcat /usr/local/tomcat2
+```
+
+修改端口，以启动多实例。多实例之间端口不能一致
+
+> 分别修改 `tomcat1` 的 `tomcat/conf/server.xml`，`8005` 为 `8011` 端口
+> 分别修改 `tomcat1` 的 `tomcat/conf/server.xml`，`8009` 为 `8019` 端口
+> 分别修改 `tomcat1` 的 `tomcat/conf/server.xml`，`8080` 为 `8081`端口
+
+```bash
+cd /usr/local/tomcat/conf
+cp server.xml{,.bak}
+sed -i 's#8005#8011#' server.xml
+sed -i 's#8080#8081#' server.xml
+sed -i 's#8009#8019#' server.xml
+```
+
+> 分别修改 `tomcat2` 的 `tomcat/conf/server.xml`，`8005` 为 `8012` 端口
+> 分别修改 `tomcat2` 的 `tomcat/conf/server.xml`，`8009` 为 `8029` 端口
+> 分别修改 `tomcat2` 的 `tomcat/conf/server.xml`，`8080` 为 `8082` 端口
+
+```bash
+cd /usr/local/tomcat2/conf
+cp server.xml{,.bak}
+sed -i 's#8005#8012#' server.xml
+sed -i 's#8080#8082#' server.xml
+sed -i 's#8009#8029#' server.xml
+```
+
+### 2. 启动两个Tomcat
+
+```bash
+/usr/local/tomcat/bin/startup.sh
+
+/usr/local/tomcat2/bin/startup.sh
+```
+
+检查端口8081和8082是否开启
+
+```bash
+netstat -ntpl | grep java
+```
+
+
+
+### 3. nginx 反代负载至tomcat集群
+
+```nginx
+upstream tomcat-cluster {
+    ip_hash;
+    server 127.0.0.1:8081;
+    server 127.0.0.1:8082;
+    #健康检查配置
+    check interval=3000 rise=2 fall=5 timeout=5000 type=http;
+    #健康检查HTTP动作
+    check_http_send "GET / HTTP/1.0\r\n\r\n";
+    #健康状态HTTP代码2xx 3xx
+    check_http_expect_alive http_2xx http_3xx;
+}
+```
+

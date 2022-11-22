@@ -1,0 +1,1011 @@
+# LVS
+
+### 1. 介绍
+
+LVS 是` Linux Virtual Server`的简称，也就是 Linux 虚拟服务器, 是一个由章文嵩博士发起的自由软件项目，它的官方站点是www.linuxvirtualserver.org。`现在LVS已经是 Linux标准内核的一部分，因此性能较高。`
+
+### 2. LVS 优势与不足
+
+1. 优势
+
+   > 1.高并发连接：LVS基于内核网络层面工作，有超强的承载能力和并发处理能力。单台LVS负载均衡器，可支持上万并发连接。
+   >
+   > 2.稳定性强：是工作在网络4层之上仅作分发之用，这个特点也决定了它在负载均衡软件里的性能最强，稳定性最好，对内存和cpu资源消耗极低。
+   >
+   > 3.成本低廉：硬件负载均衡器少则十几万，多则几十万上百万，LVS只需一台服务器和就能免费部署使用，性价比极高。
+   >
+   > 4.配置简单：LVS配置非常简单，仅需几行命令即可完成配置，也可写成脚本进行管理。
+   >
+   > 5.支持多种算法：支持多种论调算法，可根据业务场景灵活调配进行使用
+   >
+   > 6.支持多种工作模型：可根据业务场景，使用不同的工作模式来解决生产环境请求处理问题。
+
+   应用范围广：因为LVS工作在4层，所以它几乎可以对所有应用做负载均衡，包括http、数据库、DNS、ftp服务等等
+
+2. 不足
+
+   工作在4层，不支持7层规则修改，不适合小规模应用。
+
+### 3. 专业术语
+
+> VS：Virtual Server            #虚拟服务
+>
+> Director, Balancer            #负载均衡器、分发器 dr
+>
+> RS：Real Server                #后端请求处理服务器 
+>
+> CIP: Client IP                 #用户端IP
+>
+> VIP：Director Virtual IP       #负载均衡器虚拟IP
+>
+> DIP：Director IP               #负载均衡器IP
+>
+> RIP：Real Server IP            #后端请求处理服务器IP
+
+
+
+## 一、 LVS 负载均衡(lvs-dr模式)
+
+### 1. 虚拟机准备
+
+lvs-dr：`192.168.1.155`
+
+lvs-rs：`192.168.1.156`、`192.168.1.157`
+
+### 2. LVS-server 安装lvs管理软件
+
+```bash
+yum -y install ipvsadm
+```
+
+> 程序包：ipvsadm（LVS管理工具）
+>
+> 主程序：/usr/sbin/ipvsadm
+>
+> 规则保存工具：/usr/sbin/ipvsadm-save  > /path/to/file
+>
+> 配置文件：/etc/sysconfig/ipvsadm-config
+
+### 3. LVS/DR模式
+
+DR模式的组网要求LVS和Real server在同一网段二层互通。因为LVS DR模式在负载均衡转发报文时，只修改目的mac为real server的mac，lvs要能将报文转发给real server，就必须满足LVS和real server是同网段二层互通。
+
+#### 0. 实验说明
+
+DR模式要求Director DIP 和 所有RealServer RIP必须在同一个网段及广播域,所有节点网关均指定真实网关
+
+> LVS/DR load balancer（director）与RS为什么要在同一网段中？
+>
+> lvs/dr它是在数据链路层来实现的，即RIP必须能够接受到DIR的arp请求，如果不在同一网段则会隔离arp，这样arp请求就不能转发到指定的RIP上，所以director必须和RS在同一网段里面。
+
+说明：
+
+> VIP：`192.168.1.100`（提供访问服务地址）
+>
+> lvs-dr：DIP `192.168.1.155`
+>
+> lvs-rs(Web-server,nginx)：RIP `192.168.1.156`，`192.168.1.157`
+
+#### 1. 准备工作
+
+关闭防火墙和selinux,修改最大打开文件数,时间同步,重启
+
+#### 2. 安装lvs
+
+```bash
+yum install -y ipvsadm
+
+#需要手动生成文件
+ipvsadm --save > /etc/sysconfig/ipvsadm
+
+# 启动服务，开机自启
+systemctl start ipvsadm
+systemctl enable ipvsadm
+```
+
+
+
+#### 3. Director分发器配置
+
+手工配置VIP，或使用keepalived生成vip
+
+临时添加vip，network服务重启后失效。
+
+方法1: 使用`ip addr`添加
+
+```bash
+ip addr add dev ens33:0 192.168.1.100/24
+```
+
+方法2：使用`ifconfig`添加VIP地址
+
+```bash
+ifconfig ens33:0 192.168.1.100 netmask 255.255.255.0 up
+```
+
+永久添加，参数添加VIP
+
+```bash
+cat >>/etc/sysconfig/network-scripts/ifcfg-ens33:0<<EOF
+NAME=ens33:0
+DEVICE=ens33:0
+ONBOOT=yes
+IPADDR=192.168.1.100
+NETMASK=255.255.255.0
+EOF
+```
+
+重启网卡生效 `systemctl restart network`
+
+查看ip，添加静态路由
+
+```bash
+route add -host 192.168.1.100 dev ens33:0
+```
+
+
+
+dr内核调整
+
+```bash
+cat >/etc/sysctl.d/lvs-dr.conf<<EOF
+net.ipv4.ip_forward = 0
+net.ipv4.conf.all.send_redirects = 0
+net.ipv4.conf.default.send_redirects = 0
+net.ipv4.conf.ens33.send_redirects = 0
+EOF
+```
+
+```bash
+sysctl  -p /etc/sysctl.d/lvs-dr.conf 
+```
+
+调整ipvs connection hash表
+
+```bash
+cat >>/etc/modprobe.d/ip_vs.conf<<EOF
+options ip_vs conn_tab_bits=20
+EOF
+```
+
+加载模块参数(或重启服务器生效)
+
+```bash
+modprobe ip_vs
+```
+
+
+
+#### 4. 定义lvs分发策略
+
+> -A：添加VIP
+> -t：用的是tcp协议
+> -a：添加的是lo的vip地址
+> -r：转发到real-serve rip
+> -s：算法
+> -L|-l –list #显示内核虚拟服务器表
+> --numeric, -n：#以数字形式输出地址和端口号
+> -g --gatewaying #指定LVS工作模式为直接路由器模式（也是LVS默认的模式）
+> -S -save #保存虚拟服务器规则到标准输出，输出为-R 选项可读的格式
+> -w：设置权重
+> -p: 会话保持期
+> rr：轮循
+
+如果添加ip错了，删除命令：
+
+```bash
+ip addr del 192.168.1.100 dev ens33
+```
+
+
+
+清除内核虚拟服务器表中的所有记录
+
+```bash
+ipvsadm -C
+```
+
+```bash
+ipvsadm -A -t 192.168.1.100:80 -s rr  -p 120
+ipvsadm -a -t 192.168.1.100:80 -r 192.168.1.156 -g
+ipvsadm -a -t 192.168.1.100:80 -r 192.168.1.157 -g
+ipvsadm --save > /etc/sysconfig/ipvsadm
+
+ipvsadm -ln
+ipvsadm -L -n
+```
+
+ ![image-20221026165053544](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20221026165053544.png)
+
+```bash
+ipvsadm -L -n --stats
+#显示统计信息
+```
+
+ ![image-20221026165230559](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20221026165230559.png)
+
+> 1、Conns (connections scheduled)  已经转发过的连接数
+> 2、InPkts (incoming packets)       入包个数
+> 3、OutPkts (outgoing packets)       出包个数
+> 4、InBytes (incoming bytes)         入流量（字节）
+> 5、OutBytes (outgoing bytes)         出流量（字节）
+
+```bash
+ipvsadm -L -n --rate
+#看速率
+```
+
+> 1、CPS  (current connection rate)   每秒连接数
+> 2、InPPS (current in packet rate)    每秒的入包个数
+> 3、OutPPS (current out packet rate)   每秒的出包个数
+> 4、InBPS (current in byte rate)      每秒入流量（字节）
+> 5、OutBPS (current out byte rate)      每秒出流量（字节）
+
+#### 5. RS 配置
+
+配置好网站服务器，测试所有RS（以下两台real-server都操作）
+
+> 安装配置web服务器,(以nginx为例),服务开机自启，默认首页，关闭防火墙。
+
+1. 在rs上添加vip
+
+   ```bash
+   cat >>/etc/sysconfig/network-scripts/ifcfg-lo:0<<EOF
+   NAME=lo:0
+   DEVICE=lo:0
+   IPADDR=192.168.1.100
+   NETMASK=255.255.255.255
+   ONBOOT=yes
+   EOF
+   
+   systemctl restart network
+   ```
+
+2. 添加对VIP的访问路由表
+
+   方法1:
+
+   临时添加路由表
+
+   ```bash
+   /usr/sbin/route add -host 192.168.1.100 dev lo:0
+   ```
+
+   方法2:
+
+   永久添加，开机启动自动添加路由表
+
+   ```bash
+   chmod +x /etc/rc.local
+   
+   cat >>/etc/rc.local<<EOF
+   /usr/sbin/route add -host 192.168.1.100 dev lo:0
+   EOF
+   
+   systemctl enable rc-local.service
+   systemctl start rc-local.service
+   ```
+
+   查看路由表
+
+   ```bash
+   route
+   ```
+
+3. 添加对VIP的访问及ARP回应
+
+   realServer的vip有了，接着就是同一个网段中拥有两个vip, 客户端在网关发送arp广播需找vip时需要让realServer不接受响应。
+
+   方法1:
+
+   永久配置
+
+   ```bash
+   cat > /etc/sysctl.d/lvs-rs.conf <<EOF
+   net.ipv4.conf.lo.arp_ignore = 1          
+   net.ipv4.conf.lo.arp_announce = 2
+   net.ipv4.conf.all.arp_ignore = 1
+   net.ipv4.conf.all.arp_announce = 2
+   EOF
+   
+   sysctl -p /etc/sysctl.d/lvs-rs.conf
+   ```
+
+   方法2:
+
+   临时配置
+
+   ```bash
+   echo "1" >/proc/sys/net/ipv4/conf/lo/arp_ignore
+   echo "1" >/proc/sys/net/ipv4/conf/all/arp_ignore
+   #忽略arp广播
+   echo "2" >/proc/sys/net/ipv4/conf/lo/arp_announce
+   echo "2" >/proc/sys/net/ipv4/conf/all/arp_announce
+   #匹配精确ip地址回包
+   ```
+   
+   
+
+#### 6. (5.)使用脚本配置rs服务器
+
+安装配置web服务器,(以nginx为例),服务开机自启，默认首页，关闭防火墙。
+
+```bash
+rpm -qa | grep net-tools >/dev/null || yum install net-tools -y 
+```
+
+`lvs-web.sh` 脚本
+
+```sh
+#!/bin/bash 
+SNS_VIP=192.168.1.100
+case "$1" in
+start)
+       ifconfig lo:0 $SNS_VIP netmask 255.255.255.255 broadcast $SNS_VIP
+       /usr/sbin/route add -host $SNS_VIP dev lo:0
+       echo "0" > /proc/sys/net/ipv4/ip_forward
+       echo "1" >/proc/sys/net/ipv4/conf/lo/arp_ignore
+       echo "2" >/proc/sys/net/ipv4/conf/lo/arp_announce
+       echo "1" >/proc/sys/net/ipv4/conf/all/arp_ignore
+       echo "2" >/proc/sys/net/ipv4/conf/all/arp_announce
+       sysctl -p >/dev/null 2>&1
+       echo "RealServer Start OK"
+       ;;
+stop)
+       ifconfig lo:0 down
+       /usr/bin/route del $SNS_VIP >/dev/null 2>&1
+       echo "1" > /proc/sys/net/ipv4/ip_forward
+       echo "0" >/proc/sys/net/ipv4/conf/lo/arp_ignore
+       echo "0" >/proc/sys/net/ipv4/conf/lo/arp_announce
+       echo "0" >/proc/sys/net/ipv4/conf/all/arp_ignore
+       echo "0" >/proc/sys/net/ipv4/conf/all/arp_announce
+       echo "RealServer Stoped"
+       ;;
+*)
+       echo "Usage: $0 {start|stop}"
+       exit 1
+esac
+exit 0
+```
+
+手动
+
+```bash
+# 手工启动
+chmod o+x  lvs-web.sh
+/bin/bash /root/lvs-web.sh start
+
+# 手工关闭
+/bin/bash /root/lvs-web.sh stop
+```
+
+开机自启
+
+```bash
+chmod +x /etc/rc.local
+
+cat >>/etc/rc.local<<EOF
+/usr/sbin/route add -host 192.168.1.100 dev lo:0
+/bin/bash /root/lvs-web.sh start
+EOF
+
+systemctl enable rc-local.service
+systemctl start rc-local.service
+```
+
+#### 7. 测试
+
+> 访问：`192.168.1.100`
+
+#### 8. dr相关处理操作
+
+默认lvs不支持后端故障检测以及故障摘除，需手工摘除故障，手工上线
+
+1.rs故障摘除
+
+```bash
+ipvsadm -d -t 192.168.1.100:80 -r 192.168.1.156
+ipvsadm --save > /etc/sysconfig/ipvsadm
+
+ipvsadm -ln
+```
+
+ ![image-20221026172123772](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20221026172123772.png)
+
+这时候浏览器访问显示 `192.168.1.157` 的内容
+
+2.rs上线
+
+```bash
+ipvsadm -a -t 192.168.1.100:80 -r 192.168.1.156 -g -w 1
+ipvsadm --save > /etc/sysconfig/ipvsadm
+
+ipvsadm -ln
+```
+
+ ![image-20221026172324897](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20221026172324897.png)
+
+3.rs修改权重
+
+```bash
+ipvsadm -e -t 192.168.1.100:80 -r 192.168.1.157 -g -w 2
+ipvsadm --save > /etc/sysconfig/ipvsadm
+ipvsadm -ln
+```
+
+ ![image-20221026172732766](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20221026172732766.png)
+
+4.修改dr虚拟服务器的参数会话时间
+
+```bash
+ipvsadm -E -t 192.168.1.100:80 -s rr  -p 120
+ipvsadm --save > /etc/sysconfig/ipvsadm
+ipvsadm -ln
+```
+
+ ![image-20221026172859186](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20221026172859186.png)
+
+
+
+## 二、lvs + keepalived 主备高可用
+
+### 1. 主备参数说明
+
+> VIP：`192.168.1.100`（提供访问服务地址）
+>
+> lvs-dr：DIP `192.168.1.155` (master)，`192.168.1.158` (slave)
+>
+> lvs-rs(Web-server,nginx)：RIP `192.168.1.156`，`192.168.1.157`
+
+### 2. lvs-dr 配置
+
+```bash
+yum install -y ipvsadm
+
+#需要手动生成文件
+ipvsadm --save > /etc/sysconfig/ipvsadm
+
+# 启动服务，开机自启
+systemctl start ipvsadm
+systemctl enable ipvsadm
+```
+
+> 注意：lvs-dr上的vip地址使用keepalived产生
+
+dr内核调整
+
+```bash
+cat >/etc/sysctl.d/lvs-dr.conf<<EOF
+net.ipv4.ip_forward = 0
+net.ipv4.conf.all.send_redirects = 0
+net.ipv4.conf.default.send_redirects = 0
+net.ipv4.conf.ens33.send_redirects = 0
+EOF
+```
+
+```bash
+sysctl  -p /etc/sysctl.d/lvs-dr.conf
+```
+
+调整ipvs connection hash表
+
+```bash
+cat >>/etc/modprobe.d/ip_vs.conf<<EOF
+options ip_vs conn_tab_bits=20
+EOF
+```
+
+加载模块参数(或重启服务器生效)
+
+```bash
+modprobe ip_vs
+```
+
+启动服务，添加VIP服务以及后端服务器信息
+
+```bash
+systemctl start ipvsadm
+```
+
+```bash
+ipvsadm -C
+ipvsadm -A -t 192.168.1.100:80 -s rr  -p 120
+ipvsadm -a -t 192.168.1.100:80 -r 192.168.1.156 -g
+ipvsadm -a -t 192.168.1.100:80 -r 192.168.1.157 -g
+ipvsadm --save > /etc/sysconfig/ipvsadm
+
+ipvsadm -ln
+```
+
+### 3. lvs-rs 配置
+
+配置好网站服务器，测试所有RS（以下两台real-server都操作）
+
+> 安装配置web服务器,(以nginx为例),服务开机自启，默认首页，关闭防火墙。
+
+1. 在rs上添加vip
+
+   ```bash
+   cat >>/etc/sysconfig/network-scripts/ifcfg-lo:0<<EOF
+   NAME=lo:0
+   DEVICE=lo:0
+   IPADDR=192.168.1.100
+   NETMASK=255.255.255.255
+   ONBOOT=yes
+   EOF
+   
+   systemctl restart network
+   ```
+
+2. 添加对VIP的访问路由表
+
+   方法1:
+
+   临时添加路由表
+
+   ```bash
+   /usr/sbin/route add -host 192.168.1.100 dev lo:0
+   ```
+
+   方法2:
+
+   永久添加，开机启动自动添加路由表
+
+   ```bash
+   chmod +x /etc/rc.local
+   
+   cat >>/etc/rc.local<<EOF
+   /usr/sbin/route add -host 192.168.1.100 dev lo:0
+   EOF
+   
+   systemctl enable rc-local.service
+   systemctl start rc-local.service
+   ```
+
+   查看路由表
+
+   ```bash
+   route
+   ```
+
+3. 添加对VIP的访问及ARP回应
+
+   realServer的vip有了，接着就是同一个网段中拥有两个vip, 客户端在网关发送arp广播需找vip时需要让realServer不接受响应。
+
+   方法1:
+
+   永久配置
+
+   ```bash
+   cat > /etc/sysctl.d/lvs-rs.conf <<EOF
+   net.ipv4.conf.lo.arp_ignore = 1          
+   net.ipv4.conf.lo.arp_announce = 2
+   net.ipv4.conf.all.arp_ignore = 1
+   net.ipv4.conf.all.arp_announce = 2
+   EOF
+   
+   sysctl -p /etc/sysctl.d/lvs-rs.conf
+   ```
+
+   方法2:
+
+   临时配置
+
+   ```bash
+   echo "1" >/proc/sys/net/ipv4/conf/lo/arp_ignore
+   echo "1" >/proc/sys/net/ipv4/conf/all/arp_ignore
+   #忽略arp广播
+   echo "2" >/proc/sys/net/ipv4/conf/lo/arp_announce
+   echo "2" >/proc/sys/net/ipv4/conf/all/arp_announce
+   #匹配精确ip地址回包
+   ```
+
+   
+
+
+
+### 4. keepalived 分别添加配置
+
+lvs_dr_master：
+
+```bash
+vim /etc/keepalived/keepalived.conf
+```
+
+```sh
+global_defs {
+   router_id lvs_dr_master
+   script_user root
+   enable_script_security
+}
+vrrp_instance VI_1 {
+    state MASTER
+    interface ens33
+    virtual_router_id 1
+    priority 100
+    advert_int 1
+    preempt
+    authentication {
+        auth_type PASS
+        auth_pass 123
+    }
+    virtual_ipaddress {
+        192.168.1.100/24 dev ens33 label ens33:0
+    }
+}
+virtual_server 192.168.1.100 80 {    #LVS配置
+	delay_loop 6   #健康检查rs时间间隔
+	lb_algo rr     #LVS调度算法
+	lb_kind DR     #LVS集群模式（路由模式）
+	protocol TCP      #健康检查使用的协议
+	real_server 192.168.1.156 80 {
+		weight 1
+		inhibit_on_failure   #当该节点失败时，把权重设置为0，而不是从IPVS中删除
+		TCP_CHECK {          #健康检查
+			connect_port 80   #检查的端口
+			connect_timeout 3  #连接超时的时间
+			}
+		}
+	real_server 192.168.1.157 80 {
+		weight 1
+		inhibit_on_failure
+		TCP_CHECK {
+			connect_timeout 3
+			connect_port 80
+			}
+		}
+}
+```
+
+lvs_dr_backup：
+
+```bash
+vim /etc/keepalived/keepalived.conf
+```
+
+```sh
+global_defs {
+   router_id lvs_dr_backup
+   script_user root
+   enable_script_security
+}
+vrrp_instance VI_1 {
+    state BACKUP
+    interface ens33
+    virtual_router_id 1
+    priority 90
+    advert_int 1
+    preempt
+    authentication {
+        auth_type PASS
+        auth_pass 123
+    }
+    virtual_ipaddress {
+        192.168.1.100/24 dev ens33 label ens33:0
+    }
+}
+virtual_server 192.168.1.100 80 {    #LVS_Dr配置
+	delay_loop 6   #健康检查rs时间间隔
+	lb_algo rr     #LVS调度算法
+	lb_kind DR     #LVS集群模式（路由模式）
+	protocol TCP      #健康检查使用的协议
+	real_server 192.168.1.156 80 {  #LVS_rs配置
+		weight 1
+		inhibit_on_failure
+        #当该节点失败时，把权重设置为0，而不是从IPVS中删除,
+        #无此行注释，表示后端服务关闭，则在lvs中摘除，上线则自动添加
+		TCP_CHECK {          #健康检查
+			connect_port 80   #检查的端口
+			connect_timeout 3  #连接超时的时间
+			}
+		}
+	real_server 192.168.1.157 80 {
+		weight 1
+		inhibit_on_failure
+		TCP_CHECK {
+			connect_timeout 3
+			connect_port 80
+			}
+		}
+}
+```
+
+### 5. 启动keepalived
+
+```bash
+systemctl start keepalived
+```
+
+### 6. 测试
+
+在master上停用keepalived服务，查看VIP切换情况。
+
+
+
+## 三、lvs + keepalived 互为主备高可用
+
+### 1. 参数说明
+
+![image-20221027114239756](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20221027114239756.png)
+
+### 2. lvs-dr 配置
+
+同上
+
+
+
+### 3. lvs-rs 配置
+
+配置好网站服务器，测试所有RS（以下两台real-server都操作）
+
+> 安装配置web服务器,(以nginx为例),服务开机自启，默认首页，关闭防火墙。
+
+1. 在rs上添加vip，2个
+
+   ```bash
+   cat >>/etc/sysconfig/network-scripts/ifcfg-lo:0<<EOF
+   NAME=lo:0
+   DEVICE=lo:0
+   IPADDR=192.168.1.100
+   NETMASK=255.255.255.255
+   ONBOOT=yes
+   EOF
+   
+   cat >>/etc/sysconfig/network-scripts/ifcfg-lo:1<<EOF
+   NAME=lo:1
+   DEVICE=lo:1
+   IPADDR=192.168.1.200
+   NETMASK=255.255.255.255
+   ONBOOT=yes
+   EOF
+   
+   systemctl restart network
+   ```
+
+2. 添加对VIP的访问路由表
+
+   方法1:
+
+   临时添加路由表
+
+   ```bash
+   /usr/sbin/route add -host 192.168.1.100 dev lo:0
+   /usr/sbin/route add -host 192.168.1.200 dev lo:1
+   ```
+
+   方法2:
+
+   永久添加，开机启动自动添加路由表
+
+   ```bash
+   chmod +x /etc/rc.local
+   
+   cat >>/etc/rc.local<<EOF
+   /usr/sbin/route add -host 192.168.1.100 dev lo:0
+   /usr/sbin/route add -host 192.168.1.200 dev lo:1
+   EOF
+   
+   systemctl enable rc-local.service
+   systemctl start rc-local.service
+   ```
+
+   查看路由表
+
+   ```bash
+   route
+   ```
+
+3. 添加对VIP的访问及ARP回应
+
+   realServer的vip有了，接着就是同一个网段中拥有两个vip, 客户端在网关发送arp广播需找vip时需要让realServer不接受响应。
+
+   方法1:
+
+   永久配置，添加ARP广播抑制，添加VIP地址回包
+
+   ```bash
+   cat > /etc/sysctl.d/lvs-rs.conf <<EOF
+   net.ipv4.conf.lo.arp_ignore = 1          
+   net.ipv4.conf.lo.arp_announce = 2
+   net.ipv4.conf.all.arp_ignore = 1
+   net.ipv4.conf.all.arp_announce = 2
+   EOF
+   
+   sysctl -p /etc/sysctl.d/lvs-rs.conf
+   ```
+
+   方法2:
+
+   临时配置
+
+   ```bash
+   echo "1" >/proc/sys/net/ipv4/conf/lo/arp_ignore
+   echo "1" >/proc/sys/net/ipv4/conf/all/arp_ignore
+   #忽略arp广播
+   echo "2" >/proc/sys/net/ipv4/conf/lo/arp_announce
+   echo "2" >/proc/sys/net/ipv4/conf/all/arp_announce
+   #匹配精确ip地址回包
+   ```
+
+### 4. 安装keepalived，产生vip
+
+1、主备安装keepalived
+
+
+
+2、配置
+
+lvs_dr_master：
+
+```sh
+global_defs {
+   router_id lvs_dr_master
+   script_user root
+   enable_script_security
+}
+vrrp_instance VI_1 {
+    state MASTER
+    interface ens33
+    virtual_router_id 1
+    priority 100
+    advert_int 1
+    authentication {
+        auth_type PASS
+        auth_pass 123
+    }
+    virtual_ipaddress {
+        192.168.1.100/24 dev ens33 label ens33:0
+    }
+}
+virtual_server 192.168.1.100 80 {    #LVS配置
+        delay_loop 2   #健康检查rs时间间隔
+        lb_algo rr     #LVS调度算法
+        lb_kind DR     #LVS集群模式（路由模式）
+        protocol TCP      #健康检查使用的协议
+        real_server 192.168.1.156 80 {
+                weight 1
+                TCP_CHECK {          #健康检查
+                        connect_port 80   #检查的端口
+                        connect_timeout 3  #连接超时的时间
+                        }
+                }
+        real_server 192.168.1.157 80 {
+                weight 1
+                inhibit_on_failure
+                TCP_CHECK {
+                        connect_timeout 3
+                        connect_port 80
+                        }
+                }
+}
+vrrp_instance VI_2 {
+    state BACKUP
+    interface ens33
+    virtual_router_id 2
+    priority 90
+    advert_int 1
+    authentication {
+        auth_type PASS
+        auth_pass 1234
+    }
+    virtual_ipaddress {
+        192.168.1.200/24 dev ens33 label ens33:1
+    }
+}
+virtual_server 192.168.1.200 80 {    #LVS配置
+        delay_loop 2   #健康检查rs时间间隔
+        lb_algo rr     #LVS调度算法
+        lb_kind DR     #LVS集群模式（路由模式）
+        protocol TCP      #健康检查使用的协议
+        real_server 192.168.1.156 80 {
+                weight 1
+                TCP_CHECK {          #健康检查
+                        connect_port 80   #检查的端口
+                        connect_timeout 3  #连接超时的时间
+                        }
+                }
+        real_server 192.168.1.157 80 {
+                weight 1
+                TCP_CHECK {
+                        connect_timeout 3
+                        connect_port 80
+                        }
+                }
+}
+```
+
+lvs_dr_backup
+
+```sh
+global_defs {
+   router_id lvs_dr_backup
+   script_user root
+   enable_script_security
+}
+vrrp_instance VI_1 {
+    state MASTER
+    interface ens33
+    virtual_router_id 1
+    priority 90
+    advert_int 1
+    authentication {
+        auth_type PASS
+        auth_pass 123
+    }
+    virtual_ipaddress {
+        192.168.1.100/24 dev ens33 label ens33:0
+    }
+}
+virtual_server 192.168.1.100 80 {    #LVS配置
+        delay_loop 2   #健康检查rs时间间隔
+        lb_algo rr     #LVS调度算法
+        lb_kind DR     #LVS集群模式（路由模式）
+        protocol TCP      #健康检查使用的协议
+        real_server 192.168.1.156 80 {
+                weight 1
+                TCP_CHECK {          #健康检查
+                        connect_port 80   #检查的端口
+                        connect_timeout 3  #连接超时的时间
+                        }
+                }
+        real_server 192.168.1.157 80 {
+                weight 1
+                inhibit_on_failure
+                TCP_CHECK {
+                        connect_timeout 3
+                        connect_port 80
+                        }
+                }
+}
+vrrp_instance VI_2 {
+    state BACKUP
+    interface ens33
+    virtual_router_id 2
+    priority 100
+    advert_int 1
+    authentication {
+        auth_type PASS
+        auth_pass 1234
+    }
+    virtual_ipaddress {
+        192.168.1.200/24 dev ens33 label ens33:1
+    }
+}
+virtual_server 192.168.1.200 80 {    #LVS配置
+        delay_loop 2   #健康检查rs时间间隔
+        lb_algo rr     #LVS调度算法
+        lb_kind DR     #LVS集群模式（路由模式）
+        protocol TCP      #健康检查使用的协议
+        real_server 192.168.1.156 80 {
+                weight 1
+                TCP_CHECK {          #健康检查
+                        connect_port 80   #检查的端口
+                        connect_timeout 3  #连接超时的时间
+                        }
+                }
+        real_server 192.168.1.157 80 {
+                weight 1
+                TCP_CHECK {
+                        connect_timeout 3
+                        connect_port 80
+                        }
+                }
+}
+```
+
+### 5. 测试
+
+启动keepalived
+
+```bash
+systemctl start keepalived
+```
+
+查看ip分配情况
+
+测试
+
+在master停用keepalived，查看vip切换情况，后端停止web服务，查看切换情况。
+
+
+

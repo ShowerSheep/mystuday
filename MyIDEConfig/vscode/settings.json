@@ -1,0 +1,68 @@
+{
+    "terminal.integrated.fontSize": 17,
+    // "editor.fontLigatures": null,
+    // "workbench.editorAssociations": {
+    //     "*.ipynb": "jupyter.notebook.ipynb"
+    // },
+    "terminal.integrated.profiles.windows": {
+        "PowerShell": {
+            "source": "PowerShell",
+            "icon": "terminal-powershell"
+        },
+        "Command Prompt": {
+            "path": [
+                "${env:windir}\\Sysnative\\cmd.exe",
+                "${env:windir}\\System32\\cmd.exe"
+            ],
+            "args": [],
+            "icon": "terminal-cmd"
+        },
+        "Git Bash": {
+            "source": "Git Bash"
+        },
+        "Windows PowerShell": {
+            "path": "C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
+        },
+        "zsh (migrated)": {
+            "path": "zsh",
+            "args": []
+        },
+        "Ubuntu (WSL)": {
+            "path": "C:\\Windows\\System32\\wsl.exe",
+            "args": [
+                "-d",
+                "Ubuntu"
+            ]
+        }
+    },
+    "terminal.integrated.defaultProfile.windows": "Command Prompt",
+    "editor.bracketPairColorization.enabled": true,
+    "editor.fontFamily": "Cascadia Mono PL, 'Courier New', monospace",
+    "editor.fontSize": 20,
+    "editor.formatOnPaste": true,
+    "security.workspace.trust.untrustedFiles": "open",
+    "files.autoSave": "afterDelay",
+    "vsicons.dontShowNewVersionMessage": true,
+    "[html]": {
+        "editor.defaultFormatter": "vscode.html-language-features"
+    },
+    "liveServer.settings.donotShowInfoMsg": true,
+    "workbench.iconTheme": "vscode-icons",
+    // "[javascript]": {
+    //     "editor.defaultFormatter": "esbenp.prettier-vscode"
+    // },
+    "workbench.startupEditor": "none",
+    "bracket-pair-colorizer-2.depreciation-notice": false,
+    "editor.copyWithSyntaxHighlighting": false,
+    "editor.unicodeHighlight.nonBasicASCII": false,
+    "editor.language.colorizedBracketPairs": [
+    
+    ],
+    "git.autofetch": true,
+    "[json]": {
+        "editor.defaultFormatter": "vscode.json-language-features"
+    },
+    "editor.codeActionsOnSave": {
+    
+    }
+}
