@@ -29,11 +29,11 @@ echo "4.安装常用依赖环境"
 yum groupinstall "Development Tools" -y
 
 
-echo "5.定时5min时间同步"
-ntpdate ntp1.aliyun.com
-cat >>/var/spool/cron/root<<EOF
-*/5 * * * * /usr/sbin/ntpdate ntp1.aliyun.com &>/dev/null
-EOF
+# echo "5.定时5min时间同步"
+# ntpdate ntp1.aliyun.com
+# cat >>/var/spool/cron/root<<EOF
+# */5 * * * * /usr/sbin/ntpdate ntp1.aliyun.com &>/dev/null
+# EOF
 
 echo "6.最大文件打开数量"
 cat>>/etc/security/limits.d/20-nproc.conf <<EOF
@@ -45,6 +45,6 @@ EOF
 
 
 # 释放缓存中的内存
-# echo 3 >/proc/sys/vm/drop_caches
+echo 3 >/proc/sys/vm/drop_caches
 
 rm -f new-system.sh

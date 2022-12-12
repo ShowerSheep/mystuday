@@ -4,9 +4,9 @@
 
 房子：隔间-->放家具/柜子-->装门(目录)
 
-## 1.存储介绍
+## 一、存储介绍
 
-### 1.NAS
+### 1. NAS
 
 网络附加存储：是一个网络上的文件系统
 
@@ -14,13 +14,13 @@
 
 
 
-### 2.SAN(Storage Area Network) 
+### 2. SAN(Storage Area Network) 
 
 存储区域网络：是一个网络上的磁盘
 
 
 
-### 3.DAS(Direct-attached Storage) 
+### 3. DAS(Direct-attached Storage) 
 
 直连存储
 
@@ -28,7 +28,7 @@
 
 U盘，移动硬盘 ...
 
-### 4.分布式存储
+### 4. 分布式存储
 
 CEPH HDFS GlusterFS openstack(swift) ...
 
@@ -38,21 +38,21 @@ CEPH HDFS GlusterFS openstack(swift) ...
 
 
 
-## 2.存储概览
+## 二、存储概览
 
-### 1.以工作原理区分
+### 1. 以工作原理区分
 
 机械硬盘(HDD)
 
 固态硬盘(SSD)
 
-### 2.以插拔方式区分
+### 2. 以插拔方式区分
 
 热插拔
 
 非热插拔
 
-### 3.以分区方式区分
+### 3. 以分区方式区分
 
 MBR: MBR是主引导记录
 
@@ -68,7 +68,7 @@ GPT: GUID磁碟分割表
 
 
 
-## 3.磁盘分区
+## 三、磁盘分区
 
 一块硬盘，使用MBR划分分区
 
@@ -76,7 +76,7 @@ A：4主
 
 B：3主 + 1扩展(N个逻辑分区)
 
-### 1.查看本机硬盘
+### 1. 查看本机硬盘
 
 ```bash
 ll /dev/sd*
@@ -92,9 +92,9 @@ lsblk
 
  ![image-20220827101607402](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20220827101607402.png)
 
-### 2.创建分区
+### 2. 创建分区
 
-#### 1.fdisk
+#### 1、fdisk
 
 ```bash
 fdisk /dev/sdb
@@ -137,7 +137,7 @@ Last sector：结束扇区（2048到N扇区结束）
 
 w：保存操作
 
-#### 2.刷新分区表
+#### 2、刷新分区表
 
 刷硬盘，不刷分区（不加序号）
 
@@ -158,11 +158,11 @@ lsblk
 
 磁盘是分区格式化后添加了文件系统，需要挂载才能被系统使用
 
-#### 2.gdisk
+#### 3、gdisk
 
 
 
-## 4.创建文件系统(格式化)
+## 四、创建文件系统(格式化)
 
 文件系统：ext4  ext3(centos6) xfs(centos7) ext家族　xfs
 
@@ -184,7 +184,7 @@ mkfs -t ext4 /dev/sdb1
 
 
 
-## 扩展：
+### 扩展
 
 再次创建
 
@@ -238,11 +238,11 @@ mount -t ext4 /dev/sdb2 /mnt/disk2	#挂载
 
 
 
-## 5.磁盘挂载
+## 五、磁盘挂载
 
 磁盘是一个文件，挂载到文件夹
 
-### 1.临时挂载
+### 1. 临时挂载
 
 ```bash
 mount [参数] 挂载设备 挂载点
@@ -307,7 +307,7 @@ umount /opt
 partprobe /dev/sdc
 ```
 
-### 2.永久挂载
+### 2. 永久挂载
 
 修改fstab文件
 
@@ -363,7 +363,7 @@ chmod a+x /etc/rc.d/rc.local
 
 `reboot`重启验证
 
-## 6.交换分区Swap
+## 六、交换分区Swap
 
 交换分区就是一个普通的分区，只是功能不一样
 
@@ -402,7 +402,7 @@ swapon -s
 
  ![image-20220827141741064](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20220827141741064.png)
 
-### 1.准备分区
+### 1. 准备分区
 
 ```bash
 lsblk	#看系统当前有没有可用的空间
@@ -439,7 +439,7 @@ partprobe /dev/sdc
 
 
 
-### 2.格式化
+### 2. 格式化
 
 ```bash
 mkswap /dev/sdc1
@@ -463,7 +463,7 @@ swapoff /dev/sdc2	#关闭swap分区
 
 
 
-## 7.LVM逻辑卷
+## 七、LVM逻辑卷
 
 特点：随意扩张大小
 
@@ -486,9 +486,9 @@ swapoff /dev/sdc2	#关闭swap分区
 5、逻辑区域―-LE（Logical Extent） 
   逻辑区域是逻辑卷中可用于分配的最小存储单元，逻辑区域的大小取决于逻辑卷所在卷组中的物理区域的大小。
 
-### 1.创建LVM
+### 1. 创建LVM
 
-#### 1.PV
+#### 1、PV
 
 准备物理磁盘
 
@@ -504,7 +504,7 @@ pvcreate /dev/sdf
 
 
 
-#### 2.VG
+#### 2、VG
 
 创建卷组-VG
 
@@ -516,7 +516,7 @@ vgcreate vg1 /dev/sdf	#vg1自己起名
 
 
 
-#### 3.LV
+#### 3、LV
 
 方法一：
 
@@ -533,7 +533,7 @@ vg1	组名
 
 
 
-#### 4.创建文件系统并挂载
+#### 4、创建文件系统并挂载
 
 格式化
 
@@ -561,7 +561,7 @@ mount /dev/vg1/lv1 /mnt/lv1/
 
 
 
-### 2.VG管理
+### 2. VG管理
 
 扩大VG `vgextend`
 
@@ -599,7 +599,7 @@ vgs
 
 
 
-### 3.LV扩容
+### 3. LV扩容
 
 扩大LV `lvextend`
 
@@ -629,15 +629,15 @@ resize2fs /dev/vg1/lv1
 
 
 
-## 8.磁盘阵列
+## 八、磁盘阵列
 
 RAID （ Redundant Array of Independent Disks ）即独立磁盘冗余阵列，通常简称为磁盘阵列
 
 
 
-## 9.文件系统
+## 九、文件系统
 
-### 1.常用文件系统类型
+### 1. 常用文件系统类型
 
 本地文件系统（不能远程用）
 fat32 ntfs ext3 ext4 xfs
@@ -652,7 +652,7 @@ nfs  cifs gludterfs hdfs ceph(分布式文件系统)
 dumpe2fs /dev/vg1/lv2
 ```
 
-### 2.xfs文件系统修复
+### 2. xfs文件系统修复
 
 检查
 

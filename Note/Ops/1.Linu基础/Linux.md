@@ -165,9 +165,9 @@ cd .. && ls -alF
 
 ### 4. 文件目录
 
-#### 1. 路径
+#### 1、路径
 
-##### (1) 绝对路径（全）
+##### 1. 绝对路径（全）
 
 Windows：盘符:\文件及\文件夹...\文件夹\文件名.后缀名
 
@@ -177,7 +177,7 @@ gedit /home/frank/Documents/doc/1.txt	# 打开文件（macos --> open）
 
 文件不存在时，临时创建一个文件
 
-##### (2) 相对路径
+##### 2. 相对路径
 
 ```bash
 gedit ./Documents/doc/1.txt
@@ -395,7 +395,7 @@ xfs ext2 ext3 nfs ntfs
 
 ### 14. cat，more，less，tail，head查看文件内容
 
-#### 1. cat只适合看短的文件
+#### 1、cat只适合看短的文件
 
 ```bash
 cat -A 1.txt
@@ -405,7 +405,7 @@ tac xx	# 倒看
 
  ![oaioaia](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/oaioaia.png)
 
-#### 2. more按页展示
+#### 2、more按页展示
 
 ```bash
 more 1.txt
@@ -420,11 +420,11 @@ more 1.txt
 - 按 `B` 键：显示上一屏内容。
 - 按 `Q` 键：退出more命令。
 
-#### 3. less分屏上下翻页浏览文件内容
+#### 3、less分屏上下翻页浏览文件内容
 
 用less命令显示文件时，用 `PageUp` 键向上翻页，用  `PageDown` 键向下翻页。要退出less程序，应按 `Q` 键
 
-#### 4. tail和head
+#### 4、tail和head
 
 tail显示文件结尾
 
@@ -467,7 +467,7 @@ date -s 8:57	# 设置时间
 
 system monitor，系统进程
 
-#### 1. 静态查看 ps
+#### 1、静态查看 ps
 
 用于报告当前系统的进程状态（PID：医院挂号）
 
@@ -606,7 +606,7 @@ who
 
 
 
-#### 2. 动态查看 top / htop
+#### 2、动态查看 top / htop
 
 实时动态地查看系统的整体运行情况
 
@@ -619,7 +619,7 @@ htop
 
 
 
-#### 3. 网络进程
+#### 3、网络进程
 
 ```bash
 yum -y install net-tools
@@ -784,7 +784,7 @@ awk -F : NR==2'{print $3}' /etc/passwd
 
 ### 8. find文件查找
 
-#### 1.按照文件名
+#### 1、按照文件名
 
 ```bash
 find /etc -name "ifcfg-eth0"
@@ -797,7 +797,7 @@ find /etc -iname "ifcfg*"
 find /etc -iname "*fg*"
 ```
 
-#### 2.按照文件大小
+#### 2、按照文件大小
 
 ```bash
 find /etc -size +5M		# 大于5M的
@@ -807,7 +807,7 @@ find /etc -size -5M		# 小于5M
 find /etc -size +5M -ls		# 查看查到的文件的详细信息
 ```
 
-#### 3.按照时间
+#### 3、按照时间
 
 ```bash
 find /etc -mtime +5	# 修改时间超过5天
@@ -831,7 +831,7 @@ stat 文件名
 
 
 
-#### 4.按文件属主、属组
+#### 4、按文件属主、属组
 
 ```bash
 find /home -user jack		# 属主是jack的文件
@@ -846,7 +846,7 @@ find /home -not -user jack	# 取反，查找不是jack的文件
 find /home ! -user jack
 ```
 
-#### 5.按文件类型
+#### 5、按文件类型
 
 ```bash
 find /dev -type f 	# f普通
@@ -858,7 +858,7 @@ s
 p
 ```
 
-#### 6.按文件权限
+#### 6、按文件权限
 
 ```bash
 # 查找权限为644的文件
@@ -882,7 +882,7 @@ find  -perm -600
 
 
 
-#### 7.按正则表达式
+#### 7、按正则表达式
 
 ```bash
 find /etc -regex '.*ifcfg-eth[0-9]'
@@ -902,7 +902,7 @@ find /etc/ -regex '.*ifcfg-ens[0-9][0-9]'
 
  ![image-20220826163824187](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20220826163824187.png)
 
-#### 8.取反
+#### 8、取反
 
 -not / !
 
@@ -913,7 +913,7 @@ find /etc -not -size 5M
 find ./ ! -type f	#取反
 ```
 
-#### 9.查找文件动作
+#### 9、查找文件动作
 
 ```bash
 -ls：类似ls -l的形式显示每一个文件的详细
@@ -950,7 +950,7 @@ etc下conf结尾并且权限为644文件 打包压缩为conf.tar.gz
 find ./ \( -name "*.conf" -a -perm 644 \) |xargs -i tar rf /opt/conf.tar.gz
 ```
 
-#### 10.|xargs
+#### 10、xargs
 
 ```bash
 find -name "xingdian*.txt" |xargs rm -rf
@@ -963,7 +963,7 @@ find -type f -name "*.txt" |xargs -i cp {} /tmp/
 推荐使用 -i
 ```
 
-#### 11.注意
+#### 11、注意
 
 准备工作
 
@@ -1181,7 +1181,7 @@ mspaint	# 画图
 
 ### 2. 全局变量和局部变量
 
-#### 1. 全局变量
+#### 1、全局变量
 
 ```bash
 printenv		# 展示所有的环境变量
@@ -1190,7 +1190,7 @@ printenv HOME	# 输出家目录
 echo $HOME		# 输出当前用户的home目录
 ```
 
-#### 2. 局部变量
+#### 2、局部变量
 
 ```bash
 set	# 查看局部变量
@@ -1198,7 +1198,7 @@ set	# 查看局部变量
 unset	# 删除设置的变量
 ```
 
-#### 3. 定义用户局部变量
+#### 3、定义用户局部变量
 
 ```bash
 frank="123"
@@ -1210,7 +1210,7 @@ frank="123"
 
 **自己定义变量一定要小写**
 
-#### 4. 定义用户全局变量
+#### 4、定义用户全局变量
 
 ```bash
 export frank="abcdef"
@@ -1354,7 +1354,7 @@ yum repolist	# 查询可用仓库列表
 yum search xx软件包名	#搜索软件包
 ```
 
-### 3.组包
+### 3. 组包
 
 列出组包
 
@@ -1470,7 +1470,7 @@ rpm -qc  软件名称
 
 
 
-### 2.扩展yum-utils
+### 2. 扩展yum-utils
 
 下载yum-utils
 
@@ -1480,7 +1480,7 @@ yum -y install yum-utils
 yum-config-manager xxx
 ```
 
-#### 1.数据库安装
+#### 1、数据库安装
 
 方法一：
 
@@ -1493,7 +1493,7 @@ yum-config-manager --disable mysql80-community	# 关闭mysql80仓库
 
 修改 `/etc/yum.repos.d` 下的 `.repo` 文件
 
-#### 2.docker安装
+#### 2、docker安装
 
 ```bash
 yum-config-manager --add-repo repo文件网址
@@ -1518,7 +1518,7 @@ cp docker-ce.repo /etc/yum.repos.d/
 
 ### 1. 用户user
 
-#### 1. 创建用户 useradd
+#### 1、创建用户 useradd
 
 ```bash
 useradd t1		# 创建一个名为t1的用户
@@ -1539,7 +1539,7 @@ useradd -M user8			# 创建一个用户名为user8并不创建家目录
 useradd -s /sbin/nologin -M user9	#不能登陆，没有家目录
 ```
 
-#### 2. 查看用户id id
+#### 2、查看用户id id
 
 ```bash
 id user9
@@ -1549,7 +1549,7 @@ id user9
 
 
 
-#### 3. 修改用户 usermod
+#### 3、修改用户 usermod
 
 ```bash
 usermod -l frank user2	# 修改用户user2改名为frank
@@ -1580,7 +1580,7 @@ cp -r /home/yang/.bash* /yang/
 
 
 
-#### 4.改用户密码 passwd
+#### 4、改用户密码 passwd
 
 ```bash
 passwd	# 默认改root账户密码
@@ -1598,7 +1598,7 @@ echo "123456"  | passwd --stdin root
 chpasswd < user.txt
 ```
 
-#### 5. 删除用户 userdel
+#### 5、删除用户 userdel
 
 ```bash
 userdel zhangsan	# 删除不彻底（家目录，邮件文件会保留）
@@ -1606,13 +1606,13 @@ userdel zhangsan	# 删除不彻底（家目录，邮件文件会保留）
 userdel -r zhangsan   # 彻底删除
 ```
 
-#### 6. 用户切换 su
+#### 6、用户切换 su
 
 ```bash
 su - user1
 ```
 
-#### 7. 附加组
+#### 7、附加组
 
 ```bash
 ## 新组覆盖原有组
@@ -1624,7 +1624,7 @@ useradd -aG group user
 
 
 
-#### 8. 注意
+#### 8、注意
 
 uid如果我们不指定，默认根据上一个用户uid的值+1
 
@@ -1899,7 +1899,7 @@ chmod o+t dir/
 
 
 
-#### 1.suid
+#### 1、suid
 
 普通用户可以通过suid权限进行提权(二进制文件/命令文件)
 
@@ -1931,7 +1931,7 @@ suid只能给命令添加，当给命令添加了suid之后，后面再有人去
 
 
 
-#### 2.sgid
+#### 2、sgid
 
 组继承权限
 
@@ -1946,7 +1946,7 @@ chmod 2777 /home/hr
 
 
 
-#### 3.sticky
+#### 3、sticky
 
 防止他人误删除(不限制root用户)
 
@@ -2438,9 +2438,9 @@ yum -y install apr apr-util ncurses ncurses-devel openssl-devel bison gcc gcc-c+
 
 
 
-### 4.日志
+### 4. 日志
 
-#### 1. 常见的日志文件(系统、进程、应用程序)
+#### 1、常见的日志文件(系统、进程、应用程序)
 
 日志分类：系统日志、进程日志、应用程序日志
 
@@ -2471,7 +2471,7 @@ lastlog	# 所有用户的登录情况 /var/log/lastlog
 日志服务启动: `systemctl start rsyslog`
 日志配置文件: `/etc/rsyslog.conf`(主配置文件) `/etc/rsyslog.d/`(子配置文件)
 
-#### 2.集中式日志管理
+#### 2、集中式日志管理
 
 规则：日志对象.日志级别  日志文件
 
@@ -2519,7 +2519,7 @@ vim /etc/rsyslog.conf
 
 
 
-#### 2. 自定义日志
+#### 3、自定义日志
 
 修改日志配置文件
 ​	指定日志存放文件和位置
@@ -2595,7 +2595,7 @@ vim /etc/rsyslog.conf
 
 
 
-#### 3. 日志切割
+#### 4、日志切割
 
 `/etc/logrotate.conf` 主配置文件
 
@@ -2647,7 +2647,7 @@ dateext 	# 使用日期作为后缀
 
 ### 5. 计划任务
 
-#### 1. at 一次性计划任务
+#### 1、at 一次性计划任务
 
 ```bash
 yum install -y at	# 下载安装
@@ -2686,7 +2686,7 @@ at 11:00 12/31/2022
 
 
 
-#### 2. crontab循环计划任务
+#### 2、crontab循环计划任务
 
 `* * * * *` 分 时 日 月 周(0/7周日)
 
@@ -2747,7 +2747,7 @@ systemctl restart vsftpd
 
 
 
-#### 1. 基本配置
+#### 1、基本配置
 
 vsftpd的被动模式是默认开启的，可以关闭，主动模式永远开启，不能关闭
 主动模式： 21端口负责连接，20端口负责传输数据
@@ -2778,9 +2778,9 @@ set ftp:passive-mode off
 
  ![BBREIKR7DNF6GG67UVXLKT](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/BBREIKR7DNF6GG67UVXLKT.png)
 
-#### 2. FTP部署
+#### 2、FTP部署
 
-##### (1) vsftpd配置匿名用户
+##### 1. vsftpd配置匿名用户
 
 1.编辑配置文件
 
@@ -2815,7 +2815,7 @@ netstat -lnpt | grep vsftpd
 
 
 
-##### (2) vsftpd配置本地用户
+##### 2. vsftpd配置本地用户
 
 1.创建用户
 
@@ -2870,11 +2870,11 @@ lisi
 systemctl restart vsftpd
 ```
 
-#### 3.FTP远程仓库
+#### 3、FTP远程仓库
 
 防火墙 selinux
 
-##### 1.仓库端
+##### 1. 仓库端
 
 1.安装ftp服务，并启动
 
@@ -2911,7 +2911,7 @@ mkdir /opt/registry/centos
 createrepo /opt/registry/centos/
 ```
 
-##### 2.客户端
+##### 2. 客户端
 
 不需要挂载(NFS 才需要)，不需要lftp(客户端工具 x)
 
@@ -3012,22 +3012,22 @@ mount -a	# 挂载
 
 ### 8. DNS域名系统
 
-#### 1. DNS概念
+#### 1、DNS概念
 
 “.com”是顶级域名； .like .vip .top .cn .我爱你 .edu .中国
 “aliyun.com”是主域名（也可称托管一级域名），主要指企业名
 “example.aliyun.com”是子域名（也可称为托管二级域名）
 “www.example.aliyun.com”是子域名的子域（也可称为托管三级域名）
 
-#### 2. DNS客户端
+#### 2、DNS客户端
 
-##### (1) 安装工具
+##### 1.  安装工具
 
 ```bash
 yum -y isntall bind-utils
 ```
 
-##### (2) host
+##### 2. host
 
 ```bash
 host www.baidu.com
@@ -3037,7 +3037,7 @@ host www.baidu.com 114.114.114.114
 
  ![ALNGTSO2EHYHU](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/ALNGTSO2EHYHU.png)
 
-##### (3) nslookup
+##### 3. nslookup
 
 ```bash
 nslookup www.baidu.com
@@ -3046,7 +3046,7 @@ nslookup server
 
  ![aiakfkafa](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/aiakfkafa.png)
 
-##### (4) dig
+##### 4. dig
 
 ```bash
 dig www.baidu.com
@@ -3054,7 +3054,7 @@ dig www.baidu.com
 
  ![OYN4AK3YY4Q5T](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/OYN4AK3YY4Q5T.png)
 
-##### (5) 配置DNS
+##### 5. 配置DNS
 
 ```bash
 cd  /etc/sysconfig/network-scripts/
@@ -3079,7 +3079,7 @@ vim /etc/resolv.conf
 
 ### 9. 远程管理服务
 
-#### 1.ssh
+#### 1、ssh
 
 安装软件
 
@@ -3089,7 +3089,7 @@ yum install openssh*  -y
 
 ssh默认端口号：22
 
-##### (1) 配置文件
+##### 1. 配置文件
 
 server：`/etc/ssh/sshd_config`
 
@@ -3116,7 +3116,7 @@ Port 2222	# 相当于 修改了ssh命令默认的连接端口
 注意：服务器端修改完配置文件，需要重后服务，才能生效，客户端配置文件修改完成直接生效
 
 
-##### (2) 服务端
+##### 2. 服务端
 
 启动服务：
 
@@ -3134,7 +3134,7 @@ ss -auntpl | grep ssh
 
 关闭防火墙和selinux
 
-##### (3) 客户端
+##### 3. 客户端
 
 远程登录
 
@@ -3146,7 +3146,7 @@ ssh  root@10.36.139.62 -u user1 -p 123
 
 ==如果账户没有设置密码，不能登陆==
 
-##### (4) 无密码登录
+##### 4. 无密码登录
 
 ```bash
 ssh-keygen		# 产生公钥和私钥
@@ -3162,7 +3162,7 @@ ssh 10.36.139.106	# 直接登录，不需要输入密码
 rm ~/.ssh/known_hosts	# 删除已建立过连接主机的密钥
 ```
 
-##### (5) 远程拷贝
+##### 5. 远程拷贝
 
 ```bash
 scp 源文件 目标路径
@@ -3178,7 +3178,7 @@ scp 192.168.2.108:/a.txt 192.168.2.109:/ 	# 把左边的给右边
 
 
 
-#### 2.JumpServer
+#### 2、JumpServer
 
 2核4G 干净的服务器
 
@@ -3243,15 +3243,15 @@ export TMOUT=300   # 5分钟自动注销
 
 主流3个Web服务器：Apache、Nginx、IIS(Windows Server)
 
-#### 1. web中间件
+#### 1、web中间件
 
 Java：tomcat weblogic
 Python：uwsgi wsgi
 PHP：php php-fpm
 
-#### 2. Apache基本使用
+#### 2、Apache基本使用
 
-##### (1) 介绍
+##### 1. 介绍
 
 > `/etc/httpd/conf/` 存放apache的主配置文件
 >
@@ -3271,7 +3271,7 @@ PHP：php php-fpm
 >
 > `index.html` 默认的主页名称
 
-##### (2) 配置文件
+##### 2. 配置文件
 
 文件位置：`/etc/httpd/conf/httpd.conf`
 
@@ -3349,7 +3349,7 @@ CustomLog "logs/yang_access_log" yang
 
 
 
-##### (3) 创建子配置文件
+##### 3. 创建子配置文件
 
 ```config
 cd /etc/httpd/conf.d/
@@ -3387,7 +3387,7 @@ curl 10.36.139.62:87
 
  ![image-20220811141112424](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20220811141112424.png)
 
-##### (4) 基于端口的虚拟主机
+##### 4. 基于端口的虚拟主机
 
 **保证IP、域名一致**
 
@@ -3444,7 +3444,7 @@ curl 10.36.139.62:87
 
 
 
-##### (5) 基于域名的虚拟主机
+##### 5. 基于域名的虚拟主机
 
 **保证端口、IP一致**
 
@@ -3499,7 +3499,7 @@ curl 10.36.139.62:87
 
 
 
-##### (6) 基于IP的虚拟主机
+##### 6. 基于IP的虚拟主机
 
 **保证域名、端口一致**
 
@@ -3556,7 +3556,7 @@ ip a a 192.168.1.223/24 dev ens33
 
 
 
-##### (7) 基于用户的访问控制
+##### 7. 基于用户的访问控制
 
 创建用户(第一次加`c`创建文件第二次不需要，m　md5加密)
 
@@ -3592,7 +3592,7 @@ htpasswd -cm /etc/httpd/password yang
 
  ![image-20220811172801509](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20220811172801509.png)
 
-##### (8) rewrite规则
+##### 8. rewrite规则
 
 编辑game.conf文件，更改windows端hosts文件
 
@@ -3612,25 +3612,25 @@ NC 不区分大小写
 
  ![image-20220811175100352](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20220811175100352.png)
 
-#### 3. LAMP架构
+#### 3、LAMP架构
 
 >  LAMP 即 Linux + Apache + Mysql / MariaDB + Perl / PHP / Python 的首字母缩写。
 >
 > 这是一组常用来搭建动态网站或者服务器的开源软件
 
-##### 1.安装
+##### 1. 安装
 
 ```bash
 yum -y install httpd mariadb mariadb-server php php-fpm php-mysql php-gd gd
 ```
 
-##### 2.启动
+##### 2. 启动
 
 ```bash
 systemctl start php-fpm httpd mariadb
 ```
 
-##### 3.配置
+##### 3. 配置
 
 设置mysql登录密码
 
@@ -3679,7 +3679,7 @@ mkdir /web
 
 PHP使用默认配置
 
-##### 4.产品上线
+##### 4. 产品上线
 
 >  以 wordpress 为例
 
@@ -3689,7 +3689,7 @@ PHP使用默认配置
 
 
 
-####　4.LNMP架构
+####　4、LNMP架构
 
 
 

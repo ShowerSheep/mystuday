@@ -638,7 +638,7 @@ cat /usr/local/mysql/logs/mysql-slow/slow.log
 
 ### 1. percona-xtrabackup 物理备份 
 
-#### 1. 安装xtrabackup
+#### 1、安装xtrabackup
 
 [点击前往](https://www.percona.com/downloads/Percona-XtraBackup-2.4/)
 
@@ -664,7 +664,7 @@ xtrabackup --version
 > datadir = /usr/local/mysql/data`
 > 恢复时数据库目录必须为空，MySQL服务不能启动
 
-#### 2. 完全备份流程
+#### 2、完全备份流程
 
 ```bash
 innobackupex --user=root --password='口令' /备份目录
@@ -753,7 +753,7 @@ chown -R mysql:mysql chown -R mysql:mysql /usr/local/mysql/data
 
 启动数据库 `systemctl start mysqld`
 
-#### 3. 增量备份流程
+#### 3、增量备份流程
 
 1.进行完整备份
 
@@ -793,7 +793,7 @@ innobackupex --apply-log --redo-only /xtrabackup/全量目录 --incremental-dir=
 innobackupex --apply-log --redo-only /xtrabackup/全量目录 --incremental-dir=/xtrabackup/增量2目录
 ```
 
-#### 4. 差异备份流程
+#### 4、差异备份流程
 
 1.完整备份
 
@@ -810,7 +810,7 @@ innobackupex --user=root --password='123456' /xtrabackup
 innobackupex --user=root --password='口令' --incremental /备份目录  --incremental-basedir=/xtrabackup/第一次完全备份目录
 ```
 
-#### 5. 总结
+#### 5、总结
 
 ```bash
 完全备份流程:
@@ -937,7 +937,7 @@ mysql> insert into company.employee5(name,sex,hire_date,post,job_description,sal
 本地备份语法: # mysqldump  -u用户名  -p密码   数据库名  > 备份文件.sql
 ```
 
-#### **1.常用备份选项**
+#### 1、常用备份选项
 
 ```
 -A, --all-databases #备份所有库
@@ -966,7 +966,7 @@ mysql> insert into company.employee5(name,sex,hire_date,post,job_description,sal
 类似执行： mysqldump --single-transaction -u root -p123456 dbname > mysql.sql
 ```
 
-#### 2.备份表
+#### 2、备份表
 
 备份整个表结构与数据
 
@@ -978,7 +978,7 @@ mysql> insert into company.employee5(name,sex,hire_date,post,job_description,sal
 语法: # mysqldump -u root -p'口令 库名  表名1 表名2 > /db1.t1_t2.bak
 ```
 
-#### 3.备份库(重点)
+#### 3、备份库(重点)
 
 ```bash
 备份一个库：相当于将这个库里面的所有表全部备份。
@@ -995,7 +995,7 @@ mysql> insert into company.employee5(name,sex,hire_date,post,job_description,sal
 
 ![1566293795577](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/1566293795577.png)
 
-#### 4.恢复数据库和表
+#### 4、恢复数据库和表
 
   ```bash
 为保证数据一致性，应在恢复数据之前停止数据库对外的服务,停止binlog日志 因为binlog使用binlog日志恢复数据时也会产生binlog日志。
@@ -1015,7 +1015,7 @@ mysql> drop database company;
 mysql> \q
 ```
 
-#### 5.恢复全库
+#### 5、恢复全库
 
 ```bash
 登陆mysql创建一个库
@@ -1024,7 +1024,7 @@ mysql> create database company;
 [root@mysql-server ~]# mysql -uroot -p'123' company < /home/back/company.bak
 ```
 
-#### 6.单独恢复表
+#### 6、单独恢复表
 
 ```bash
 登陆到刚才恢复的库中将其中的一个表删除掉
@@ -1055,7 +1055,7 @@ mysql> source /home/back/company.employee5.bak;  -------加路径和备份的文
                      库名    备份的文件路径
 ```
 
-#### 7.备份及恢复表结构
+#### 7、备份及恢复表结构
 
 备份时不包含表内数据
 
@@ -1074,7 +1074,7 @@ mysql> create database t1;
 
 ![1566295893236](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/1566295893236.png)
 
-#### 8.数据的导入导出,没有表结构。
+#### 8、数据的导入导出,没有表结构。
 
  ```bash
 表的导出和导入只备份表内记录，不会备份表结构，需要通过mysqldump备份表结构，恢复时先恢复表结构，再导入数据。
@@ -1126,7 +1126,7 @@ mysql> load data infile '/sql/out-employee5.bak' into table employee5;
 
 ### 1. AB复制（GTID）
 
-#### 1. 主
+#### 1、主
 
 `vim /etc/my.cnf` 在`[mysqld]` 下添加
 
@@ -1251,7 +1251,7 @@ GRANT REPLICATION SLAVE ON *.*  TO  'repl'@'%'  identified by '123456';
 flush privileges;
 ```
 
-#### 2. 从
+#### 2、从
 
 `my.cnf`配置文件，注意server-id不能相同
 
@@ -1293,7 +1293,7 @@ show slave status\G
 
 测试同步
 
-#### 3. 故障切换
+#### 3、故障切换
 
 主服务器宕机
 

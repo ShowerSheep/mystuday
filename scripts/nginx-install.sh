@@ -2,19 +2,20 @@
 
 first() {
     # 安装依赖包
-    yum -y install gcc gcc-c++ pcre pcre-devel gd-devel openssl openssl-devel  zlib zlib-devel
+yum -y install gcc gcc-c++ pcre pcre-devel gd-devel openssl openssl-devel  zlib zlib-devel
 
     # 创建nginx用户
-    id nginx || useradd nginx -s /sbin/nologin
+id nginx || useradd nginx -s /sbin/nologin
 
     # 下载nginx源码包
-    [ -f ./nginx-1.16.0.tar.gz ] || wget http://nginx.org/download/nginx-1.16.0.tar.gz
+[ -f ./nginx-1.16.0.tar.gz ] || wget http://nginx.org/download/nginx-1.16.0.tar.gz
 
-    tar xf nginx-1.16.0.tar.gz
+tar xf nginx-1.16.0.tar.gz
 }
 
 no_health_check() {
-    cd nginx-1.16.0
+
+cd nginx-1.16.0
 
     # 预编译
 ./configure \
@@ -161,3 +162,7 @@ case "$choose" in
 		printf "请输入正确的数字!!!\n"
 		;; 
 esac
+
+
+
+

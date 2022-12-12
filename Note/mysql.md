@@ -16,7 +16,7 @@ MySQL Server mysql的服务端
 
 ## 一、数据库的基本操作
 
-### 1.mysql的启动和停止
+### 1. mysql的启动和停止
 
 1.在服务中启动和停止
 
@@ -28,7 +28,7 @@ net start mysql57 启动
 
 
 
-### 2.mysql连接与关闭
+### 2. mysql连接与关闭
 
 连接
 
@@ -51,7 +51,7 @@ quit
 
 
 
-### 3.创建data文件夹
+### 3. 创建data文件夹
 
 windows
 
@@ -63,7 +63,7 @@ mysqld --initialize-insecure --user=root
 
 
 
-### 4.数据库的显示
+### 4. 数据库的显示
 
 显示出所有仓库
 
@@ -73,7 +73,7 @@ show databases;
 
  ![image-20220815194949201](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20220815194949201.png)
 
-### 5.创建数据库
+### 5. 创建数据库
 
 ```mysql
 create database 库名;
@@ -101,7 +101,7 @@ create database if not exists student;
 create database if not exists `student`;
 ```
 
-### 6.删除数据库
+### 6. 删除数据库
 
 删除已经存在的仓库
 
@@ -119,7 +119,7 @@ drop database if exists `database`;
 drop database if exists student;
 ```
 
-### 7.查看创建数据库的SQL
+### 7. 查看创建数据库的SQL
 
 查看当初库是怎么创建的
 
@@ -127,7 +127,7 @@ drop database if exists student;
 show create database student;
 ```
 
-### 8.创建数据库指定字符编码以及查看数据库的字符编码
+### 8. 创建数据库指定字符编码以及查看数据库的字符编码
 
 **实际开发中是utf8，gbk学习使用**
 
@@ -135,7 +135,7 @@ show create database student;
 create database if not exists `students` charset=gbk; 
 ```
 
-### 9.修改数据库字符编码
+### 9. 修改数据库字符编码
 
 ```mysql
 alter database teacher charset=gbk; #更新数据库
@@ -145,7 +145,7 @@ alter database teacher charset=gbk; #更新数据库
 
 ## 二、表的基本操作
 
-### 1.引用数据库和查看数据库中的表
+### 1. 引用数据库和查看数据库中的表
 
 1、创建库
 
@@ -177,7 +177,7 @@ show 表名;
 show tables;
 ```
 
-### 2.创建表
+### 2. 创建表
 
 1.普通
 
@@ -246,7 +246,7 @@ show create table student;
 
 
 
-### 3.查看表的结构
+### 3. 查看表的结构
 
 ```mysql
 desc 表名;
@@ -263,7 +263,7 @@ desc student;
 
 
 
-### 4.删除表
+### 4. 删除表
 
 ```mysql
 drop table 表名;
@@ -286,7 +286,7 @@ drop table if exists student;
 drop table if exists student, stu, oooo, jjjj;
 ```
 
-### 5.修改表
+### 5. 修改表
 
 修改表的字符编码
 
@@ -376,7 +376,7 @@ alter table student rename to students;
 
 ## 三、数据操作
 
-### 1.插入数据
+### 1. 插入数据
 
 1.普通插入数据
 
@@ -443,7 +443,7 @@ insert into teacher values(NULL, 'TOM_1', NULL, default),(NULL, 'Jerry_1', NULL,
 
  ![image-20220815203652288](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20220815203652288.png)
 
-### 2.删除数据
+### 2. 删除数据
 
 ```mysql
 delete from 表名 where 字段=内容;
@@ -509,7 +509,7 @@ truncate table student;
 
 ![image-20220820155055968](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20220820155055968.png)
 
-### 3.更新数据
+### 3. 更新数据
 
 ```mysql
 update 表名 set 字段=内容 where 字段=内容;
@@ -553,7 +553,7 @@ update teacher set address='shanghai' where phone=1111111 or phone=222222;
 
  ![image-20220822115559811](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20220822115559811.png)
 
-### 4.查询表数据（基本）
+### 4. 查询表数据（基本）
 
 ```mysql
 select 字段,字段,... from 表名;
@@ -569,7 +569,7 @@ select id, phone, address from teacher;
 
  ![image-20220822172104948](https://typora3366.oss-cn-shenzhen.aliyuncs.com/img_for_typora/image-20220822172104948.png)
 
-### 5.SQL语句区分
+### 5. SQL语句区分
 
 DDL  data definition language  	数据库定义语言 create alter drop show
 
@@ -579,7 +579,7 @@ DCL  data control language		数据库控制语言 grant revoke
 
 
 
-### 6.字符编码问题
+### 6. 字符编码问题
 
 查看字符编码
 
@@ -616,7 +616,7 @@ set character_set_client=gbk;
 | double       | 8 Bytes                                  |                                                         |                                 | 双精度浮点数值 |
 | decimal      | 对DECIMAL(M,D) ，如果M>D，为M+2否则为D+2 | 依赖于M和D的值                                          | 依赖于M和D的值                  | 小数值         |
 
-### 1.int类型
+### 1. int类型
 
 ```mysql
 create table emp(
@@ -632,7 +632,7 @@ kkk int(6)
 
 
 
-### 2.浮点数
+### 2. 浮点数
 
 ```mysql
 number_1 float(3,1),
@@ -645,7 +645,7 @@ number_23 double(5,2)
 
 丢失精度
 
-### 3.定点数
+### 3. 定点数
 
 decimal 
 
@@ -653,7 +653,7 @@ decimal
 
 钱 用这个
 
-### 4.字符串与文本类型
+### 4. 字符串与文本类型
 
 char 不会回收多余的空间  效率高
 
@@ -661,11 +661,11 @@ varchar 回收多余的空间  效率不如char
 
 text 文本类型
 
-### 5.布尔类型
+### 5. 布尔类型
 
 
 
-### 6.枚举类型
+### 6. 枚举类型
 
 ```mysql
 gender enum('man', 'woman', '?', 'nothing', 'it')
@@ -678,7 +678,7 @@ insert into t_5 values('nothing');
 insert into t_5 values(2); #可以是数字，比较方便
 ```
 
-### 7.set集合类型
+### 7. set集合类型
 
 就是取多个
 
@@ -690,7 +690,7 @@ hobby set('哲学', '经济学', '文学', 'IT', '数学', 'MBA')
 insert into t_6 values('IT,经济学'); #顺序无所谓，显示的时候按照顺序显示
 ```
 
-### 8.时间日期类型
+### 8. 时间日期类型
 
 | year | date       | time     | datetime            |
 | ---- | ---------- | -------- | ------------------- |
@@ -707,7 +707,7 @@ insert into t_7 values('2020-07-28 18:49:33');
 
 ## 五、列属性完整性
 
-### 1.Primary Key主键的作用及企业用途
+### 1. Primary Key主键的作用及企业用途
 
 绝对唯一，能确定数据存在，不可重复
 
@@ -735,11 +735,11 @@ alter table t_8 drop primary key;
 
 
 
-### 2.组合键（复合主键）
+### 2. 组合键（复合主键）
 
 某些网站：用户编号、昵称、ID...都是唯一的
 
-### 3.unique唯一建的作用
+### 3. unique唯一建的作用
 
 保证数据的唯一
 
@@ -771,7 +771,7 @@ alter table t_10 add unique(phone);
 alter table t_11 drop index phone;
 ```
 
-### 4.sql内注释和代码注释
+### 4.s ql内注释和代码注释
 
 ```mysql
 create table t_12(
@@ -780,7 +780,7 @@ name varchar(20) comment '姓名'
 );
 ```
 
-### 5.数据库完整性
+### 5. 数据库完整性
 
 实体完整性，域完整性，参照完整性，自定义完整性
 
@@ -792,7 +792,7 @@ name varchar(20) comment '姓名'
 
 可能需要对外部进行引用
 
-### 6.外键
+### 6. 外键
 
 ```mysql
 create table stu(
@@ -818,7 +818,7 @@ foreign key (stuID) references stu(stuID)
 alter table eatery_2 add foreign key (stuID) references stu(stuID);
 ```
 
-### 7.置空和级联
+### 7. 置空和级联
 
 一般情况下，再删除的时候使用置空操作，不使用级联
 
@@ -918,7 +918,7 @@ mysql> select * from eatery;
 
 ## 六、数据库设计思维
 
-### 1.数据库设计基本概念
+### 1. 数据库设计基本概念
 
 关系？关系型数据库 两张表的共有字段去确定数据的完整性
 
@@ -932,7 +932,7 @@ OOP
 
 数据的完整行
 
-### 2.实体和实体之间的关系
+### 2. 实体和实体之间的关系
 
 一对一
 
@@ -942,7 +942,7 @@ OOP
 
 多对多
 
-### 3.Code第一范式 确保每列原子性
+### 3. Code第一范式 确保每列原子性
 
 例：
 
@@ -950,7 +950,7 @@ OOP
 
 确保字段的原子性（原子不能再分）
 
-### 4.Code第二范式 非键字段必须依赖键字段
+### 4. Code第二范式 非键字段必须依赖键字段
 
 就是别他妈没事找事
 
@@ -960,7 +960,7 @@ OOP
 
 不该有的东西不该有，和student基础信息没关系的全部干掉
 
-### 5.Code第三范式 消除传递依赖
+### 5. Code第三范式 消除传递依赖
 
 **根据项目的需求来，没有标准**
 
@@ -974,7 +974,7 @@ OOP
 
 ## 七、单表查询
 
-### 1.select
+### 1. select
 
 ```mysql
 mysql> select '去你妈的';
@@ -1006,7 +1006,7 @@ mysql> select 'Go fuck youself' as qnmd;
 1 row in set (0.00 sec)
 ```
 
-### 2.from
+### 2. from
 
 来自哪张表 ，主要使用笛卡尔积
 
@@ -1043,7 +1043,7 @@ mysql> select * from t1,t2;
 
 
 
-### 3.dual
+### 3. dual
 
 dual 默认伪表
 
@@ -1057,7 +1057,7 @@ mysql> select 2*7 as res from dual;
 1 row in set (0.00 sec)
 ```
 
-### 4.where
+### 4. where
 
 条件筛选
 
@@ -1065,26 +1065,26 @@ mysql> select 2*7 as res from dual;
 select * from t3 where age <= 18;
 ```
 
-### 5.in / not...
+### 5. in / not...
 
 ```mysql
 select * from t4 where address in('beijing','shanghai');
 ```
 
-### 6.between...and... / not...
+### 6. between...and... / not...
 
 ```mysql
 select * from t3 where age>=15 and age<=20;
 select * from t3 where age between 15 and 20; #包括20和15
 ```
 
-### 7.is null /not...
+### 7. is null /not...
 
 ```mysql
 select * from t3 where age is null;
 ```
 
-### 8.聚合函数
+### 8. 聚合函数
 
 主要是做统计用的
 
@@ -1100,7 +1100,7 @@ select count(chinese) from score; #统计成绩次数
 select count(*) ...; #不要用，知道就行
 ```
 
-### 9.like模糊查询
+### 9. like模糊查询
 
 ```mysql
 select * from student where name like '张%';
@@ -1114,7 +1114,7 @@ select * from student where name like '张_';
 
 _代表一个字符
 
-### 10.order by排序查询
+### 10. order by排序查询
 
 ```mysql
 select * from score order by chinese asc;
@@ -1124,7 +1124,7 @@ select * from score order by chinese asc;
 
 **desc 降序**
 
-### 11.group by 分组查询
+### 11. group by 分组查询
 
 ```mysql
 select avg(age) as '年龄' , gender '性别' from info group by gender;
@@ -1138,7 +1138,7 @@ select avg(age) as '年龄' , address '地区' from info group by address;
 
 分别求北京和上海地区的平均年龄
 
-### 12.group_concat
+### 12. group_concat
 
 ```mysql
 select group_concat(name), gander from student group by gender;
@@ -1146,7 +1146,7 @@ select group_concat(name), gander from student group by gender;
 
 聚合显示出名字和
 
-### 13.having
+### 13. having
 
 不是对数据库中的数据进行筛选，而是查询后的结果进行筛选
 
@@ -1160,7 +1160,7 @@ select avg(age) as 'age', address as 'address' from info group by address having
 
 注意添加别名（as...）便于筛选
 
-### 14.limit
+### 14. limit
 
 ```mysql
 select * from info limit 1,3;
@@ -1174,7 +1174,7 @@ select * from info order by age desc limit 3;
 
 查出这张表中年龄最大的三个人的数据，降序
 
-### 15.distinct / all
+### 15. distinct / all
 
 ```mysql
 select distinct address from info;
@@ -1188,7 +1188,7 @@ select distinct address from info;
 
 ## 八、多表查询
 
-### 1.union联合查询
+### 1. union联合查询
 
 ```mysql
 select age,gender from info union select 'name',phone from teachar;
@@ -1200,7 +1200,7 @@ select age,gender from info union select 'name',phone from teachar;
 select age,gender from info union distinct select 'name',phone from teachar;
 ```
 
-### 2.Inner join
+### 2. Inner join
 
 innor join内连接，有公共字段
 
@@ -1210,17 +1210,17 @@ select name,score from student innor join score on student.id=score.stuid;
 
 两张表联合起来表示
 
-### 3.left join
+### 3. left join
 
 左连接
 
 以左表为基准（谁在左边就以谁为主）
 
-### 4.right join
+### 4. right join
 
 右查询
 
-### 5.cross join
+### 5. cross join
 
 ```mysql
 select * from t1 cross join t3;
@@ -1228,7 +1228,7 @@ select * from t1 cross join t3;
 
 返回笛卡尔积
 
-### 6.natural join
+### 6. natural join
 
 自然连接
 
@@ -1240,9 +1240,9 @@ select * from t1 natural join t3;
 
 默认自然内连接，同理还有自然左连接，自然右连接
 
-### 6.无公共同名字段的自然连接返回笛卡尔积
+### 7. 无公共同名字段的自然连接返回笛卡尔积
 
-### 7.using
+### 8. using
 
 当两张表字段都是一样的时候
 
@@ -1252,31 +1252,31 @@ select * from t1 inner join t3 using(id);
 
 （跟自然连接的效果是一样的）
 
-### 8.哪一个连接实用？
+### 9. 哪一个连接实用？
 
 看需求
 
 ## 九、子查询
 
-### 1.子查询基本语法
+### 1. 子查询基本语法
 
 ```mysql
 select * from student where id in (select stuid from score where score>=85);
 ```
 
-### 2.in和not in
+### 2. in和not in
 
 
 
-### 3.exists 和not exosts
+### 3. exists 和not exosts
 
 
 
 ## 十、高级部分
 
-### 1. 视图 1-5
+### 1. 视图
 
-#### 1.开场
+#### 1. 开场
 
 防止有关人员看到不该看到的内容（某人银行账户有**钱）
 
@@ -1284,7 +1284,7 @@ select * from student where id in (select stuid from score where score>=85);
 
 从某种意义上来说降低复杂度
 
-#### 2.view视图创建、使用、作用
+#### 2. view视图创建、使用、作用
 
 创建视图
 
@@ -1300,7 +1300,7 @@ select * from vw_stu;
 
 保护隐私
 
-#### 3.显示视图
+#### 3. 显示视图
 
 ```mysql
 show tables;
@@ -1322,7 +1322,7 @@ show create vw_stu;
 show table status where comment='view' \G
 ```
 
-#### 4.更新和删除视图
+#### 4. 更新和删除视图
 
 更新：
 
@@ -1336,7 +1336,7 @@ alter view vw_stu_all as select name from student;
 drop view vw_stu_all;
 ```
 
-#### 5.视图算法temptable(临时表算法)，merge(合并)
+#### 5. 视图算法temptable(临时表算法)，merge(合并)
 
 undefined(未定义的)
 
@@ -1346,9 +1346,9 @@ undefined(未定义的)
 create algorithm=temptable view vw_stu_all as select name,phone from student;
 ```
 
-### 2. 事务 6-10
+### 2. 事务
 
-#### 6.事务的提出
+#### 1. 事务的提出
 
 买东西的时候，点击立即购买之后，没付款，问：没付款的钱去哪了？更新到支付宝账户上？还是没更新？
 
@@ -1356,7 +1356,7 @@ create algorithm=temptable view vw_stu_all as select name,phone from student;
 
 事务：transaction
 
-#### 7.transaction
+#### 2. transaction
 
 开启事务：
 
@@ -1385,7 +1385,7 @@ rollback;
 
 只要commit就不能rollback（已经收到货了，不能退款了）
 
-#### 8.rollback to 回滚点
+#### 3. rollback to 回滚点
 
 git版本控制/虚拟机快照
 
@@ -1400,7 +1400,7 @@ commit;
 
 four之前的所有数据保留，four后边的都不要了
 
-#### 9.ACID(事务的4大特性)
+#### 4. ACID(事务的4大特性)
 
 > atomicity 原子性
 > consistency 一致性
@@ -1409,15 +1409,15 @@ four之前的所有数据保留，four后边的都不要了
 
 
 
-#### 10.注意事项
+#### 5. 注意事项
 
 事务只有在指定数据库引擎为innoDB的时候才能用，并不是都能用
 
 创建数据库的时候可以指定数据库引擎
 
-### 3. 索引 index 11
+### 3. 索引 index
 
-#### 11.索引
+#### 1. 索引
 
 缺点：增删改效率变低（不是一般的低）
 
@@ -1451,9 +1451,9 @@ drop index balance_index on wallet;
 如果表里数据非常少，千万不要创建索引
 性别，不要创建索引
 
-### 4.存储过程 12-13
+### 4. 存储过程
 
-#### 12.delimiter
+#### 2. delimiter
 
 ```mysql
 delimiter //
@@ -1463,7 +1463,7 @@ delimiter //
 
 
 
-#### 13.procedure 存储过程的用途
+#### 3. procedure 存储过程的用途
 
 ```mysql
 create procedure proc()
@@ -1490,9 +1490,9 @@ drop procedure proc;
 show create procedure proc;
 ```
 
-### 5.有趣的函数 14-16
+### 5. 有趣的函数
 
-#### 14.number
+#### 1. number
 
 生成一个随机数：
 
@@ -1507,8 +1507,6 @@ select floor(3.1);	#向下取整
 select truncate(3.141592654,2);	#截取数字
 ```
 
-
-
 选人抽奖：
 
 ```mysql
@@ -1521,7 +1519,7 @@ select * from student order by rand() limit 3;
 select * from student order by rand();
 ```
 
-#### 15.string
+#### 2. string
 
 ```mysql
 select ucase ('abcd!');		#转化为大写	ABCD!
@@ -1549,7 +1547,7 @@ mysql> select concat(name,'|',age) from student;
 4 rows in set (0.00 sec)
 ```
 
-#### 16.others
+#### 3. others
 
 ```mysql
 select now();	#获取当前的时间
@@ -1594,7 +1592,7 @@ mysql> select sha('ajbdabuiabf');
 
 ## 十一、企业规范约束
 
-### 1.库表字段约束规范
+### 1. 库表字段约束规范
 
 是不是VIP 字段：is_vip  类型：unsigned tinyint  长度：1
 
@@ -1621,7 +1619,7 @@ mysql> select sha('ajbdabuiabf');
 定义年龄一般为tinyint，无符号的
 龟年龄比较长smallint，无符号的
 
-### 2.索引规范
+### 2. 索引规范
 
 业务和流程上有唯一特性的字段，即使他是多的字段的组合，也应该设置一个唯一索引
 
@@ -1633,7 +1631,7 @@ mysql> select sha('ajbdabuiabf');
 
 如果varchar建立索引，必须制定长度，没必要在全字段建立索引
 
-### 3.SQL开发约束
+### 3. SQL开发约束
 
 不要妄想使用count(xxx,xxx,xxx,...)来代替count(*)，不可能，完全不是一个概念，即便把所有的列名都写完，最后发现NULL的没有统计
 
@@ -1654,7 +1652,7 @@ in的操作能避免就避免
 utf8作为国际的编码，不能用GBK
 
 
-### 4.其他约束
+### 4. 其他约束
 
 ORM框架（spring data jpa）
 
