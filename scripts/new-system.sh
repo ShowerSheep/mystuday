@@ -1,13 +1,14 @@
 #!/bin/bash
-cat <<-EOF
-本脚本将按顺序执行如下步骤：
-1.关闭防火墙,seLinux
-2.换aliyun源，重建缓存
-3.安装 vim wget zsh unzip net-tools ntpdate git psmisc patch tree
-4.安装开发者工具组包
-5.定时5min时间同步
-6.最大文件打开数量
-EOF
+
+# cat <<-EOF
+# 本脚本将按顺序执行如下步骤：
+# 1.关闭防火墙,seLinux
+# 2.换aliyun源，重建缓存
+# 3.安装 vim wget zsh unzip net-tools ntpdate git psmisc patch tree
+# 4.安装开发者工具组包
+# 5.定时5min时间同步
+# 6.最大文件打开数量
+# EOF
 
 echo "1.关闭防火墙，seLinux"
 systemctl stop firewalld && systemctl disable firewalld
@@ -29,8 +30,8 @@ echo "4.安装常用依赖环境"
 yum groupinstall "Development Tools" -y
 
 
-# echo "5.定时5min时间同步"
-# ntpdate ntp1.aliyun.com
+echo "5.定时5min时间同步"
+ntpdate ntp1.aliyun.com
 # cat >>/var/spool/cron/root<<EOF
 # */5 * * * * /usr/sbin/ntpdate ntp1.aliyun.com &>/dev/null
 # EOF
@@ -45,6 +46,6 @@ EOF
 
 
 # 释放缓存中的内存
-echo 3 >/proc/sys/vm/drop_caches
+# echo 3 >/proc/sys/vm/drop_caches
 
 rm -f new-system.sh
